@@ -13,7 +13,7 @@ import {
   BarChart3,
 } from "lucide-react";
 
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -41,346 +41,140 @@ const FEATURES = [
   },
 ];
 
+// Samakan dengan panjang Email OTP pada pengaturan Supabase Auth.
+const EMAIL_OTP_LENGTH = 8;
+const RESEND_SECONDS = 60;
+
+function getAuthErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === "object") {
+    const authError = error as { code?: string; status?: number; message?: string };
+    if (authError.status === 429 || authError.code === "over_email_send_rate_limit" || authError.code === "over_request_rate_limit") {
+      return "Terlalu banyak permintaan. Tunggu beberapa saat sebelum mencoba lagi.";
+    }
+    if (authError.code === "otp_expired") {
+      return "Kode salah atau sudah kedaluwarsa. Gunakan kode terbaru atau kirim ulang.";
+    }
+    if (authError.message) return authError.message;
+  }
+  return fallback;
+}
+
 export default function RegisterForm() {
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  // Simpan email yang benar-benar dipakai signUp, terpisah dari input formulir.
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [resendAvailableAt, setResendAvailableAt] = useState(0);
+  const registerInFlight = useRef(false);
 
-  // =====================================================
-  // PASSWORD
-  // =====================================================
-
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
-
-  const [password, setPassword] =
-    useState("");
-
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
-
-  const [passwordError, setPasswordError] =
-    useState("");
-
-  // =====================================================
-  // PHONE
-  // =====================================================
-
-  const [phone, setPhone] =
-    useState("");
-
-  // =====================================================
-  // LOADING
-  // =====================================================
-
-  const [loading, setLoading] =
-    useState(false);
-
-  // =====================================================
-  // ERROR
-  // =====================================================
-
-  const [error, setError] =
-    useState("");
-
-  // =====================================================
-  // OTP DUMMY
-  // =====================================================
-
-  const [showOtpModal, setShowOtpModal] =
-    useState(false);
-
-  // =====================================================
-  // REGISTER
-  // =====================================================
-
-  async function handleSubmit(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    if (loading) return;
-
+    if (registerInFlight.current) return;
     setError("");
     setPasswordError("");
 
-    // ===================================================
-    // VALIDASI PASSWORD
-    // ===================================================
+    const formData = new FormData(e.currentTarget);
+    const fullName = String(formData.get("fullName") ?? "").trim();
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const nomorHp = phone.trim();
 
+    if (!fullName || !email || !nomorHp) {
+      setError("Nama lengkap, email, dan nomor handphone wajib diisi.");
+      return;
+    }
+    // Membuka modal yang ditutup tidak perlu membuat akun/mengirim email lagi.
+    if (verificationEmail === email) {
+      setShowOtpModal(true);
+      return;
+    }
     if (password !== confirmPassword) {
-      setPasswordError(
-        "Password dan konfirmasi password tidak cocok."
-      );
-
+      setPasswordError("Password dan konfirmasi password tidak cocok.");
       return;
     }
-
     if (password.length < 8) {
-      setPasswordError(
-        "Password minimal 8 karakter."
-      );
-
+      setPasswordError("Password minimal 8 karakter.");
       return;
     }
 
-    // ===================================================
-    // AMBIL DATA FORM
-    // ===================================================
-
-    const form = e.currentTarget;
-
-    const fullNameInput =
-      form.elements.namedItem(
-        "fullName"
-      ) as HTMLInputElement | null;
-
-    const emailInput =
-      form.elements.namedItem(
-        "email"
-      ) as HTMLInputElement | null;
-
-    if (!fullNameInput || !emailInput) {
-      setError("Form tidak ditemukan.");
-      return;
-    }
-
-    const fullName =
-      fullNameInput.value.trim();
-
-    const email =
-      emailInput.value
-        .trim()
-        .toLowerCase();
-
-    const nomorHp =
-      phone.trim();
-
-    // ===================================================
-    // VALIDASI DATA
-    // ===================================================
-
-    if (!fullName) {
-      setError(
-        "Nama lengkap wajib diisi."
-      );
-
-      return;
-    }
-
-    if (!email) {
-      setError(
-        "Email wajib diisi."
-      );
-
-      return;
-    }
-
-    if (!nomorHp) {
-      setError(
-        "Nomor handphone wajib diisi."
-      );
-
-      return;
-    }
-
-    // ===================================================
-    // MULAI REGISTER
-    // ===================================================
-
+    registerInFlight.current = true;
     setLoading(true);
-
     try {
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "MEMULAI REGISTRASI"
-      );
-
-      console.log(
-        "NAMA:",
-        fullName
-      );
-
-      console.log(
-        "EMAIL:",
-        email
-      );
-
-      console.log(
-        "NO HP:",
-        nomorHp
-      );
-
-      console.log(
-        "================================="
-      );
-
-      // =================================================
-      // 1. BUAT USER DI AUTH.USERS
-      // =================================================
-
-      const {
-        data,
-        error: authError,
-      } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          data: {
-            nama_lengkap: fullName,
-            nomor_hp: nomorHp,
-          },
+          data: { nama_lengkap: fullName, nomor_hp: nomorHp },
         },
       });
+      if (authError) throw authError;
+      if (!data.user) throw new Error("Pendaftaran belum berhasil. Silakan coba lagi.");
 
-      // =================================================
-      // CEK ERROR AUTH
-      // =================================================
-
-      if (authError) {
-        console.error(
-          "AUTH REGISTER ERROR:",
-          authError
-        );
-
-        setError(
-          authError.message
-        );
-
+      // Pembuatan profiles dan peserta tetap ditangani trigger database proyek.
+      // Saat Confirm email aktif, signUp belum memberikan session.
+      if (data.session && data.user.email_confirmed_at) {
+        router.replace("/pendaftar/beranda");
+        router.refresh();
         return;
       }
 
-      // =================================================
-      // CEK USER
-      // =================================================
-
-      if (!data.user) {
-        console.error(
-          "USER TIDAK DIBUAT"
-        );
-
-        setError(
-          "Akun gagal dibuat. Silakan coba lagi."
-        );
-
-        return;
-      }
-
-      console.log(
-        "AUTH BERHASIL"
-      );
-
-      console.log(
-        "USER ID:",
-        data.user.id
-      );
-
-      // =================================================
-      // PROFILE + PESERTA
-      // =================================================
-
-      /*
-        TIDAK ADA INSERT PROFILE DI SINI.
-
-        TIDAK ADA INSERT PESERTA DI SINI.
-
-        Database trigger akan otomatis membuat:
-
-        auth.users
-             ↓
-        profiles
-             ↓
-        peserta
-      */
-
-      console.log(
-        "PROFILE + PESERTA AKAN DIBUAT OLEH DATABASE TRIGGER"
-      );
-
-      // =================================================
-      // REGISTER BERHASIL
-      // =================================================
-
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "REGISTER BERHASIL"
-      );
-
-      console.log(
-        "USER ID:",
-        data.user.id
-      );
-
-      console.log(
-        "================================="
-      );
-
-      // =================================================
-      // BUKA OTP DUMMY
-      // =================================================
-
+      setVerificationEmail(email);
+      setResendAvailableAt(Date.now() + RESEND_SECONDS * 1000);
+      setPassword("");
+      setConfirmPassword("");
       setShowOtpModal(true);
-
     } catch (err) {
-      console.error(
-        "REGISTER EXCEPTION:",
-        err
-      );
-
-      setError(
-        "Terjadi kesalahan saat melakukan registrasi."
-      );
-
+      setError(getAuthErrorMessage(err, "Terjadi kesalahan saat melakukan registrasi."));
     } finally {
+      registerInFlight.current = false;
       setLoading(false);
     }
   }
 
-  // =====================================================
-  // OTP DUMMY
-  // =====================================================
-
-  function handleVerifyOtp(
-    code: string
-  ) {
-    console.log(
-      "OTP:",
-      code
-    );
-
-    // ===================================================
-    // OTP DUMMY
-    // ===================================================
-
-    if (code !== "123456") {
-      alert(
-        "Kode OTP salah. Gunakan OTP dummy: 123456"
-      );
-
-      return;
+  async function handleVerifyOtp(code: string): Promise<void> {
+    if (!verificationEmail) throw new Error("Email verifikasi belum tersedia. Silakan daftar terlebih dahulu.");
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: verificationEmail,
+      token: code.trim(),
+      type: "email",
+    });
+    if (verifyError) {
+      throw new Error(getAuthErrorMessage(verifyError, "Kode tidak dapat diverifikasi. Silakan coba lagi."));
+    }
+    if (!data.session || !data.user?.email_confirmed_at) {
+      throw new Error("Verifikasi belum menghasilkan sesi masuk. Silakan coba masuk melalui halaman login.");
     }
 
-    // ===================================================
-    // OTP BENAR
-    // ===================================================
-
-    console.log(
-      "OTP BERHASIL"
-    );
-
+    setVerificationEmail("");
     setShowOtpModal(false);
+    router.replace("/pendaftar/beranda");
+    router.refresh();
+  }
 
-    router.push(
-      "/pendaftar/beranda"
-    );
+  async function handleResendOtp(): Promise<void> {
+    if (!verificationEmail) throw new Error("Email verifikasi belum tersedia.");
+    if (Date.now() < resendAvailableAt) {
+      throw new Error("Tunggu hitung mundur selesai sebelum mengirim ulang.");
+    }
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: verificationEmail,
+    });
+    if (resendError) {
+      // Beri jeda juga saat server membatasi permintaan.
+      if (resendError.status === 429) {
+        setResendAvailableAt(Date.now() + RESEND_SECONDS * 1000);
+      }
+      throw new Error(getAuthErrorMessage(resendError, "Email belum dapat dikirim ulang."));
+    }
+    setResendAvailableAt(Date.now() + RESEND_SECONDS * 1000);
   }
 
   // =====================================================
@@ -440,6 +234,20 @@ export default function RegisterForm() {
           {error && (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
               {error}
+            </div>
+          )}
+
+          {verificationEmail && (
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-600">
+              <p>Verifikasi email pendaftaranmu untuk melanjutkan.</p>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => { setError(""); setShowOtpModal(true); }}
+                className="mt-2 font-semibold text-brand-blue hover:underline disabled:opacity-60"
+              >
+                Lanjutkan verifikasi email
+              </button>
             </div>
           )}
 
@@ -747,15 +555,14 @@ export default function RegisterForm() {
           OTP MODAL
       ================================================= */}
 
-      {showOtpModal && (
+      {showOtpModal && verificationEmail && (
         <OtpModal
-          phone={phone}
-          onClose={() =>
-            setShowOtpModal(false)
-          }
-          onVerify={
-            handleVerifyOtp
-          }
+          email={verificationEmail}
+          codeLength={EMAIL_OTP_LENGTH}
+          resendAvailableAt={resendAvailableAt}
+          onClose={() => setShowOtpModal(false)}
+          onVerify={handleVerifyOtp}
+          onResend={handleResendOtp}
         />
       )}
 

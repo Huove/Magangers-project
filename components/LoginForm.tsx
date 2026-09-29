@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+
 
 const FEATURES = [
   {
@@ -268,12 +270,12 @@ export default function LoginForm() {
                 Ingat saya
               </label>
 
-              <a
+              <Link
                 href="/lupa-password"
                 className="font-semibold text-brand-blue hover:underline"
               >
                 Lupa password?
-              </a>
+              </Link>
             </div>
 
             {/* LOGIN BUTTON */}
