@@ -8,6 +8,7 @@ import {
   FileCheck2,
   BarChart3,
   LogOut,
+  CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,8 +18,9 @@ const MENU_ITEMS = [
   { label: "Peserta Bimbingan", icon: Users, href: "/dashboard-pembina/peserta" },
   { label: "Kelola Tugas", icon: ClipboardList, href: "/dashboard-pembina/tugas" },
   { label: "Pemeriksaan Jurnal", icon: BookCheck, href: "/dashboard-pembina/jurnal" },
-  { label: "Persetujuan Izin", icon: FileCheck2, href: "/dashboard-pembina/izin" },
+  { label: "Persetujuan Izin", icon: FileCheck2, href: "/dashboard-pembina/izin" }, 
   { label: "Penilaian Peserta", icon: BarChart3, href: "/dashboard-pembina/penilaian" },
+  { label: "Jadwal Evaluasi" ,icon: CalendarClock, href: "/dashboard-pembina/jadwal-evaluasi" },
 ];
 
 export default function PembinaSidebar() {
