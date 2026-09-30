@@ -17,20 +17,25 @@ const statusLabelMap: Record<string, string> = {
   wawancara: "Wawancara",
   diterima: "Diterima",
   ditolak: "Ditolak",
+  aktif: "Verifikasi",
+  selesai: "Selesai",
 };
 
 export default function Topbar() {
   const { status, photo, userData } = useUser();
 
-  /* ================= LOGIC TIMELINE ================= */
+  // normalize kalau status enum lama masih ada
+  const normalizedStatus = status === "aktif" ? "verifikasi" : status;
 
   let currentIndex = 0;
+  if (normalizedStatus === "tidak_aktif") currentIndex = 1;
+  if (normalizedStatus === "mengajukan") currentIndex = 2;
+  if (normalizedStatus === "verifikasi") currentIndex = 3;
+  if (normalizedStatus === "wawancara") currentIndex = 4;
+  if (normalizedStatus === "diterima") currentIndex = 5;
 
-  if (status === "tidak_aktif") currentIndex = 1;
-  if (status === "mengajukan") currentIndex = 2;
-  if (status === "verifikasi") currentIndex = 3;
-  if (status === "wawancara") currentIndex = 4;
-  if (status === "diterima") currentIndex = 5;
+  const displayName = userData?.pribadi?.nama || "Nama Lengkap";
+  const initial = displayName?.charAt(0)?.toUpperCase() || "U";
 
   return (
     <header className="sticky top-0 z-30 h-24 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -49,19 +54,18 @@ export default function Topbar() {
                 dotColor = "bg-yellow-400 border-yellow-100 ring-4 ring-yellow-100";
               }
 
-              if (status === "diterima") {
+              if (normalizedStatus === "diterima") {
                 dotColor = "bg-green-500 border-green-100";
               }
 
-              const lineCompleted =
-                i < currentIndex - 1 || status === "diterima";
+              const lineCompleted = i < currentIndex - 1 || normalizedStatus === "diterima";
 
               return (
                 <div key={step.key} className="flex items-center">
                   <div className="flex flex-col items-center w-24 sm:w-28">
                     <span
                       className={`text-[11px] sm:text-xs mb-2 font-medium whitespace-nowrap ${
-                        i < currentIndex - 1 || status === "diterima"
+                        i < currentIndex - 1 || normalizedStatus === "diterima"
                           ? "text-green-700"
                           : i === currentIndex - 1
                           ? "text-yellow-700"
@@ -97,28 +101,24 @@ export default function Topbar() {
         <div className="shrink-0 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2">
           <div className="text-right hidden sm:block">
             <p className="text-sm font-semibold text-gray-900 leading-none">
-                {
-                  userData?.pribadi?.nama ||
-                  userData?.nama ||
-                  "Nama Lengkap"
-                }
+              {displayName}
             </p>
 
             <div className="mt-1 flex justify-end">
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                  status === "diterima"
+                  normalizedStatus === "diterima"
                     ? "bg-green-100 text-green-700"
-                    : status === "wawancara"
+                    : normalizedStatus === "wawancara"
                     ? "bg-purple-100 text-purple-700"
-                    : status === "verifikasi"
+                    : normalizedStatus === "verifikasi"
                     ? "bg-blue-100 text-blue-700"
-                    : status === "mengajukan"
+                    : normalizedStatus === "mengajukan"
                     ? "bg-yellow-100 text-yellow-700"
                     : "bg-gray-200 text-gray-700"
                 }`}
               >
-                {statusLabelMap[status]}
+                {statusLabelMap[normalizedStatus] ?? normalizedStatus}
               </span>
             </div>
           </div>
@@ -126,18 +126,10 @@ export default function Topbar() {
           <div className="relative">
             <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-200 ring-2 ring-white shadow-sm">
               {photo ? (
-                <img
-                  src={photo}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
+                <img src={photo} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">
-                    {
-                      userData?.pribadi?.nama?.charAt(0)?.toUpperCase() ||
-                      userData?.nama?.charAt(0)?.toUpperCase() ||
-                      "U"
-                    }
+                  {initial}
                 </div>
               )}
             </div>

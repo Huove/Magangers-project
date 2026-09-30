@@ -2,7 +2,7 @@
 
 import { Eye } from "lucide-react";
 
-import { Report } from "@/app/admin/laporan/page";
+import type { Report } from "@/app/admin/laporan/page";
 
 interface Props {
   data: Report[];

@@ -91,7 +91,7 @@ export default function Sidebar({
     const confirmed = window.confirm("Yakin ingin logout?");
 
     if (confirmed) {
-      router.push("/login");
+      router.push("/");
 
       if (onLogout) {
         onLogout();

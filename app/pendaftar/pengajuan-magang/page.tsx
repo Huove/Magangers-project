@@ -2,6 +2,7 @@
 
 import { useUser } from "@/components/pendaftar/UserContext";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function PengajuanMagangPage() {
   const { status, setStatus } = useUser();
@@ -49,24 +50,22 @@ export default function PengajuanMagangPage() {
   };
 
   const handleCheckbox = (name: string) => {
-    setCheckbox({ ...checkbox, [name]: !checkbox[name as keyof typeof checkbox] });
+    setCheckbox({
+      ...checkbox,
+      [name]: !checkbox[name as keyof typeof checkbox],
+    });
   };
 
   /* ================= VALIDATION ================= */
-
-  const isFormComplete = Object.values(form).every(
-    (v) => v.trim() !== ""
-  );
-
+  const isFormComplete = Object.values(form).every((v) => v.trim() !== "");
   const isCheckboxComplete = Object.values(checkbox).every(Boolean);
-
   const canSubmit = isFormComplete && isCheckboxComplete;
 
   const filledFields = Object.values(form).filter((v) => v.trim() !== "").length;
   const totalFields = Object.keys(form).length;
   const percentage = Math.round((filledFields / totalFields) * 100);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) {
       setError("⚠ Semua field dan pernyataan wajib diisi!");
       return;
@@ -74,7 +73,67 @@ export default function PengajuanMagangPage() {
 
     setError("");
 
-    // ✅ Ubah status ke mengajukan
+    // ✅ Ambil session token
+    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+    if (sessionErr) {
+      setError("⚠ Gagal mengambil session. Silakan login ulang.");
+      return;
+    }
+
+    const accessToken = sessionData.session?.access_token;
+
+    console.log("TOKEN EXISTS?", !!accessToken);
+
+    if (!accessToken) {
+      setError("⚠ Session tidak ditemukan. Silakan login ulang.");
+      return;
+    }
+
+    // ✅ Kirim ke backend
+    const res = await fetch("/api/pengajuan/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        posisi: form.bidang,
+        catatan: form.catatan,
+
+        // field tambahan (opsional) untuk future
+        bidang: form.bidang,
+        divisi: form.divisi,
+        mulai: form.mulai,
+        selesai: form.selesai,
+        tujuan: form.tujuan,
+        kemampuan: form.kemampuan,
+        pengalaman: form.pengalaman,
+        pernyataan: checkbox,
+      }),
+    });
+
+    const text = await res.text();
+
+    console.log("SUBMIT STATUS:", res.status);
+    console.log("SUBMIT BODY:", text);
+
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = { message: text };
+    }
+
+    if (!res.ok) {
+      // ✅ tampilkan message + detail kalau ada
+      const msg =
+        (json?.message ?? "⚠ Pengajuan gagal dikirim.") +
+        (json?.detail ? ` (${json.detail})` : "");
+      setError(msg);
+      return;
+    }
+
+    // ✅ Jika sukses, update UI lokal
     setStatus("mengajukan");
 
     // ✅ Hapus draft
@@ -295,7 +354,6 @@ export default function PengajuanMagangPage() {
                   onChange={() => handleCheckbox(item.key)}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-
                 <span className="text-sm text-gray-700 leading-relaxed">
                   {item.text}
                 </span>

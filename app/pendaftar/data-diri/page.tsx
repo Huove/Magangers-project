@@ -1,5 +1,7 @@
 "use client";
 
+import DokumenUploaderSection from "@/components/pendaftar/DokumenUploaderSection";
+import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/pendaftar/UserContext";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -180,43 +182,74 @@ export default function DataDiriPage() {
 
   /* ================= SAVE ================= */
 
-  const handleConfirm = () => {
-    const isComplete = Object.values(form).every(
-      (value) => value.trim() !== ""
-    );
+const handleConfirm = async () => {
+  const isComplete = Object.values(form).every((value) => value.trim() !== "");
 
-    if (!isComplete) {
-      setError(
-        "Masih ada data yang belum lengkap. Silakan periksa kembali."
-      );
-
-      setModalMessage(
-        "Beberapa data belum lengkap. Silakan lengkapi seluruh field terlebih dahulu."
-      );
-
-      return;
-    }
-
-    setError("");
-
-    setUserData({
-      pribadi: form,
-      pendidikan: form,
-    });
-
-    localStorage.removeItem("draft-data-diri");
-
-    const main = document.querySelector("main");
-
-    main?.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-
+  if (!isComplete) {
+    setError("Masih ada data yang belum lengkap. Silakan periksa kembali.");
     setModalMessage(
-      "Data diri berhasil disimpan!"
+      "Beberapa data belum lengkap. Silakan lengkapi seluruh field terlebih dahulu."
     );
-  };
+    return;
+  }
+
+  setError("");
+
+  // ambil token login user
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+  if (sessionErr) {
+    setError("Gagal mengambil session. Silakan login ulang.");
+    setModalMessage("Gagal mengambil session. Silakan login ulang.");
+    return;
+  }
+
+  const token = sessionData.session?.access_token;
+  if (!token) {
+    setError("Session tidak ditemukan. Silakan login ulang.");
+    setModalMessage("Session tidak ditemukan. Silakan login ulang.");
+    return;
+  }
+
+  // simpan ke DB lewat API baru
+  const res = await fetch("/api/pendaftar/data-diri", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(form),
+  });
+
+  let json: any = null;
+  const text = await res.text();
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = { message: text };
+  }
+
+  if (!res.ok) {
+    const msg =
+      (json?.message ?? "Gagal menyimpan data diri.") +
+      (json?.detail ? ` (${json.detail})` : "");
+    setError(msg);
+    setModalMessage(msg);
+    return;
+  }
+
+  // kalau sukses: update context & bersihkan draft
+  setUserData({
+    pribadi: form,
+    pendidikan: form,
+  });
+
+  localStorage.removeItem("draft-data-diri");
+
+  const main = document.querySelector("main");
+  main?.scrollTo({ top: 0, behavior: "smooth" });
+
+  setModalMessage("Data diri berhasil disimpan!");
+};
 
   /* ================= DOCUMENT DATA ================= */
 
@@ -739,243 +772,7 @@ export default function DataDiriPage() {
               DOKUMEN
           ==================================================== */}
 
-          <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-7">
-
-            <div className="mb-6 flex items-start gap-3">
-
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <Files size={20} />
-              </div>
-
-              <div className="flex-1">
-
-                <h2 className="text-lg font-semibold text-neutral-900">
-                  Dokumen Peserta
-                </h2>
-
-                <p className="mt-1 text-sm text-neutral-500">
-                  Upload dokumen yang diperlukan untuk
-                  melengkapi data peserta.
-                </p>
-
-              </div>
-
-              <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 sm:block">
-                {uploadedDocuments}/
-                {totalDocuments}
-              </span>
-
-            </div>
-
-            {/* PROGRESS */}
-
-            <div className="mb-6 rounded-2xl bg-neutral-50 p-4">
-
-              <div className="mb-2 flex items-center justify-between">
-
-                <div>
-
-                  <p className="text-sm font-medium text-neutral-800">
-                    Kelengkapan Dokumen
-                  </p>
-
-                  <p className="mt-0.5 text-xs text-neutral-400">
-                    {uploadedDocuments} dari{" "}
-                    {totalDocuments} dokumen
-                    telah diupload
-                  </p>
-
-                </div>
-
-                <span className="text-sm font-semibold text-blue-600">
-                  {percentage}%
-                </span>
-
-              </div>
-
-              <div className="h-2.5 overflow-hidden rounded-full bg-neutral-200">
-
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500"
-                  style={{
-                    width: `${percentage}%`,
-                  }}
-                />
-
-              </div>
-
-              {isDocumentsComplete && (
-                <div className="mt-3 flex items-center gap-2 text-xs font-medium text-emerald-600">
-
-                  <CheckCircle2 size={15} />
-
-                  Semua dokumen sudah lengkap
-
-                </div>
-              )}
-
-            </div>
-
-            {/* DOCUMENT LIST */}
-
-            <div className="space-y-3">
-
-              {documentList.map((doc) => {
-
-                const fileData =
-                  documents[
-                    doc.key as keyof typeof documents
-                  ];
-
-                const isUploaded =
-                  Boolean(fileData);
-
-                const isImage =
-                  typeof fileData ===
-                    "string" &&
-                  fileData.startsWith(
-                    "data:image"
-                  );
-
-                return (
-                  <div
-                    key={doc.key}
-                    className="group flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white p-4 transition hover:border-blue-200 hover:bg-blue-50/20 sm:flex-row sm:items-center sm:justify-between"
-                  >
-
-                    {/* LEFT */}
-
-                    <div className="flex min-w-0 items-center gap-4">
-
-                      <div
-                        className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border ${
-                          isUploaded
-                            ? "border-blue-100 bg-blue-50"
-                            : "border-neutral-200 bg-neutral-50"
-                        }`}
-                      >
-
-                        {isUploaded ? (
-                          isImage ? (
-                            <img
-                              src={
-                                fileData as string
-                              }
-                              alt={doc.label}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <FileText
-                              size={22}
-                              className="text-blue-600"
-                            />
-                          )
-                        ) : (
-                          <FileText
-                            size={21}
-                            className="text-neutral-300"
-                          />
-                        )}
-
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <p className="truncate text-sm font-semibold text-neutral-800">
-                          {doc.label}
-                        </p>
-
-                        <p className="mt-1 hidden text-xs text-neutral-400 sm:block">
-                          {doc.description}
-                        </p>
-
-                        <div className="mt-1.5 flex items-center gap-1.5">
-
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              isUploaded
-                                ? "bg-emerald-500"
-                                : "bg-red-400"
-                            }`}
-                          />
-
-                          <p
-                            className={`text-xs font-medium ${
-                              isUploaded
-                                ? "text-emerald-600"
-                                : "text-neutral-400"
-                            }`}
-                          >
-                            {isUploaded
-                              ? "Sudah Upload"
-                              : "Belum Upload"}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                    {/* ACTION */}
-
-                    <div className="flex items-center gap-2">
-
-                      {isUploaded && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setDocuments({
-                              ...documents,
-                              [doc.key]:
-                                undefined,
-                            })
-                          }
-                          className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 transition hover:bg-red-100"
-                          title="Hapus dokumen"
-                        >
-                          <X size={16} />
-                        </button>
-                      )}
-
-                      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700 active:scale-[0.98]">
-
-                        <Upload size={15} />
-
-                        {isUploaded
-                          ? "Ganti"
-                          : "Upload"}
-
-                        <input
-                          type="file"
-                          hidden
-                          onChange={(e) =>
-                            handleFileUpload(
-                              e,
-                              doc.key
-                            )
-                          }
-                        />
-
-                      </label>
-
-                    </div>
-
-                  </div>
-                );
-              })}
-
-            </div>
-
-          </section>
-
-          {/* ERROR */}
-
-          {error && (
-            <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
+        <DokumenUploaderSection />
 
           {/* ===================================================
               SAVE BUTTON

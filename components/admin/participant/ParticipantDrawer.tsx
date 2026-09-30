@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import type {
+  ReactNode,
+} from "react";
+
 import {
   X,
   Building2,
@@ -8,16 +16,122 @@ import {
   User,
   GraduationCap,
   Mail,
+  ClipboardCheck,
+  UserRoundCheck,
 } from "lucide-react";
 
-import { Participant } from "@/app/admin/peserta/page";
+import { supabase } from "@/lib/supabase";
+
+import type {
+  Participant,
+} from "@/app/admin/peserta/page";
+
+// =====================================================
+// PROPS
+// =====================================================
 
 interface Props {
   open: boolean;
+
   onClose: () => void;
-  participant: Participant | null;
-  onSave: (participant: Participant) => void;
+
+  participant:
+    | Participant
+    | null;
+
+  onSave: (
+    participant: Participant
+  ) =>
+    | void
+    | Promise<void>;
 }
+
+// =====================================================
+// PEMBIMBING OPTION
+// =====================================================
+
+interface PembimbingOption {
+  id: string;
+  nama: string;
+}
+
+// =====================================================
+// ABSENSI
+// =====================================================
+
+interface AttendanceSummary {
+  hadir: number;
+  izin: number;
+  terlambat: number;
+}
+
+// =====================================================
+// PENILAIAN
+// =====================================================
+
+interface Evaluation {
+  kehadiran:
+    | number
+    | null;
+
+  kedisiplinan:
+    | number
+    | null;
+
+  tanggungJawab:
+    | number
+    | null;
+
+  sikap:
+    | number
+    | null;
+
+  komunikasi:
+    | number
+    | null;
+
+  kerjaSama:
+    | number
+    | null;
+
+  tugas:
+    | number
+    | null;
+
+  laporan:
+    | number
+    | null;
+
+  catatan:
+    | string
+    | null;
+}
+
+// =====================================================
+// DEFAULT
+// =====================================================
+
+const defaultAttendance: AttendanceSummary = {
+  hadir: 0,
+  izin: 0,
+  terlambat: 0,
+};
+
+const defaultEvaluation: Evaluation = {
+  kehadiran: null,
+  kedisiplinan: null,
+  tanggungJawab: null,
+  sikap: null,
+  komunikasi: null,
+  kerjaSama: null,
+  tugas: null,
+  laporan: null,
+  catatan: null,
+};
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 export default function ParticipantDrawer({
   open,
@@ -25,450 +139,1321 @@ export default function ParticipantDrawer({
   participant,
   onSave,
 }: Props) {
-  const [editedParticipant, setEditedParticipant] =
-    useState<Participant | null>(participant);
+  // ===================================================
+  // EDIT DATA
+  // ===================================================
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [
+    editedParticipant,
+    setEditedParticipant,
+  ] =
+    useState<Participant | null>(
+      null
+    );
 
-  // Ketika peserta yang dipilih berubah
+  const [
+    isEditing,
+    setIsEditing,
+  ] =
+    useState(false);
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] =
+    useState(false);
+
+  const [
+    saveError,
+    setSaveError,
+  ] =
+    useState("");
+
+  // ===================================================
+  // DETAIL DATABASE
+  // ===================================================
+
+  const [
+    detailLoading,
+    setDetailLoading,
+  ] =
+    useState(false);
+
+  const [
+    attendance,
+    setAttendance,
+  ] =
+    useState<AttendanceSummary>(
+      defaultAttendance
+    );
+
+  const [
+    evaluation,
+    setEvaluation,
+  ] =
+    useState<Evaluation>(
+      defaultEvaluation
+    );
+
+  // ===================================================
+  // PEMBIMBING
+  // ===================================================
+
+  const [
+    pembimbingOptions,
+    setPembimbingOptions,
+  ] =
+    useState<
+      PembimbingOption[]
+    >([]);
+
+  // ===================================================
+  // SYNC PARTICIPANT
+  // ===================================================
+
   useEffect(() => {
-    setEditedParticipant(participant);
-    setIsEditing(false);
-  }, [participant]);
+    if (
+      !open ||
+      !participant
+    ) {
+      return;
+    }
 
-  if (!open || !editedParticipant) return null;
+    setEditedParticipant(
+      participant
+    );
 
-  const currentParticipant = editedParticipant;
+    setIsEditing(
+      false
+    );
 
-  // ============================
-  // UPDATE DATA
-  // ============================
+    setSaveError("");
 
-  function updateField(
-    field: keyof Participant,
-    value: string
+    setAttendance(
+      defaultAttendance
+    );
+
+    setEvaluation(
+      defaultEvaluation
+    );
+
+    loadDetailParticipant(
+      participant.id
+    );
+
+    loadPembimbing();
+  }, [
+    open,
+    participant,
+  ]);
+
+  // ===================================================
+  // LOAD DETAIL
+  // ===================================================
+
+  async function loadDetailParticipant(
+    pesertaId: string
   ) {
-    setEditedParticipant((current) => {
-      if (!current) return current;
+    try {
+      setDetailLoading(
+        true
+      );
 
-      return {
-        ...current,
-        [field]: value,
-      };
+      // ===============================================
+      // ABSENSI + PENILAIAN
+      // ===============================================
+
+      const [
+        absensiResult,
+        penilaianResult,
+      ] =
+        await Promise.all([
+          supabase
+            .from("absensi")
+            .select("status")
+            .eq(
+              "peserta_id",
+              pesertaId
+            ),
+
+          supabase
+            .from("penilaian")
+            .select(`
+              kehadiran,
+              kedisiplinan,
+              tanggung_jawab,
+              sikap,
+              komunikasi,
+              kerja_sama,
+              tugas,
+              laporan,
+              catatan
+            `)
+            .eq(
+              "peserta_id",
+              pesertaId
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+      // ===============================================
+      // ABSENSI
+      // ===============================================
+
+      if (
+        absensiResult.error
+      ) {
+        console.error(
+          "ABSENSI DETAIL ERROR:",
+          absensiResult.error
+        );
+      } else {
+        const absensi =
+          absensiResult.data ||
+          [];
+
+        setAttendance({
+          hadir:
+            absensi.filter(
+              (item) =>
+                item.status ===
+                "hadir"
+            ).length,
+
+          terlambat:
+            absensi.filter(
+              (item) =>
+                item.status ===
+                "terlambat"
+            ).length,
+
+          izin:
+            absensi.filter(
+              (item) =>
+                item.status ===
+                  "izin" ||
+                item.status ===
+                  "sakit"
+            ).length,
+        });
+      }
+
+      // ===============================================
+      // PENILAIAN
+      // ===============================================
+
+      if (
+        penilaianResult.error
+      ) {
+        console.error(
+          "PENILAIAN DETAIL ERROR:",
+          penilaianResult.error
+        );
+      } else if (
+        penilaianResult.data
+      ) {
+        const nilai =
+          penilaianResult.data;
+
+        setEvaluation({
+          kehadiran:
+            nilai.kehadiran,
+
+          kedisiplinan:
+            nilai.kedisiplinan,
+
+          tanggungJawab:
+            nilai.tanggung_jawab,
+
+          sikap:
+            nilai.sikap,
+
+          komunikasi:
+            nilai.komunikasi,
+
+          kerjaSama:
+            nilai.kerja_sama,
+
+          tugas:
+            nilai.tugas,
+
+          laporan:
+            nilai.laporan,
+
+          catatan:
+            nilai.catatan,
+        });
+      }
+    } catch (error) {
+      console.error(
+        "LOAD DETAIL PARTICIPANT ERROR:",
+        error
+      );
+    } finally {
+      setDetailLoading(
+        false
+      );
+    }
+  }
+
+  // ===================================================
+  // LOAD PEMBIMBING
+  // ===================================================
+
+  async function loadPembimbing() {
+    try {
+      // ===============================================
+      // 1. PEMBIMBING
+      // ===============================================
+
+      const {
+        data:
+          pembimbingData,
+        error:
+          pembimbingError,
+      } =
+        await supabase
+          .from("pembimbing")
+          .select(`
+            id,
+            user_id
+          `);
+
+      if (
+        pembimbingError
+      ) {
+        throw pembimbingError;
+      }
+
+      const rows =
+        pembimbingData ||
+        [];
+
+      if (
+        rows.length === 0
+      ) {
+        setPembimbingOptions(
+          []
+        );
+
+        return;
+      }
+
+      // ===============================================
+      // 2. PROFILE PEMBIMBING
+      // ===============================================
+
+      const userIds = [
+        ...new Set(
+          rows.map(
+            (item) =>
+              item.user_id
+          )
+        ),
+      ];
+
+      const {
+        data:
+          profileData,
+        error:
+          profileError,
+      } =
+        await supabase
+          .from("profiles")
+          .select(`
+            id,
+            nama_lengkap
+          `)
+          .in(
+            "id",
+            userIds
+          );
+
+      if (
+        profileError
+      ) {
+        throw profileError;
+      }
+
+      // ===============================================
+      // 3. FORMAT
+      // ===============================================
+
+      const options: PembimbingOption[] =
+        rows.map(
+          (item) => {
+            const profile =
+              (
+                profileData ||
+                []
+              ).find(
+                (user) =>
+                  user.id ===
+                  item.user_id
+              );
+
+            return {
+              id:
+                item.id,
+
+              nama:
+                profile
+                  ?.nama_lengkap ||
+                "Pembimbing",
+            };
+          }
+        );
+
+      options.sort(
+        (a, b) =>
+          a.nama.localeCompare(
+            b.nama,
+            "id"
+          )
+      );
+
+      setPembimbingOptions(
+        options
+      );
+    } catch (error) {
+      console.error(
+        "LOAD PEMBIMBING ERROR:",
+        error
+      );
+    }
+  }
+
+  // ===================================================
+  // GUARD
+  // ===================================================
+
+  if (
+    !open ||
+    !participant ||
+    !editedParticipant
+  ) {
+    return null;
+  }
+
+  const currentParticipant =
+    editedParticipant;
+
+  // ===================================================
+  // START EDIT
+  // ===================================================
+
+  function handleStartEdit() {
+    setSaveError("");
+
+    setEditedParticipant({
+      ...currentParticipant,
+
+      nama:
+        normalizeEditable(
+          currentParticipant.nama
+        ),
+
+      sekolah:
+        normalizeEditable(
+          currentParticipant.sekolah
+        ),
+
+      posisi:
+        normalizeEditable(
+          currentParticipant.posisi
+        ),
+
+      divisi:
+        normalizeEditable(
+          currentParticipant.divisi
+        ),
+
+      tanggalMulai:
+        currentParticipant
+          .tanggalMulai ||
+        "",
+
+      tanggalSelesai:
+        currentParticipant
+          .tanggalSelesai ||
+        "",
     });
+
+    setIsEditing(
+      true
+    );
   }
 
-  // ============================
-  // SIMPAN
-  // ============================
+  // ===================================================
+  // CANCEL EDIT
+  // ===================================================
 
-  function handleSave() {
-    if (!editedParticipant) return;
+  function handleCancelEdit() {
+    setEditedParticipant(
+      participant
+    );
 
-    onSave(editedParticipant);
-    setIsEditing(false);
+    setIsEditing(
+      false
+    );
+
+    setSaveError("");
   }
 
-  // ============================
-  // UBAH STATUS
-  // ============================
+  // ===================================================
+  // CHANGE
+  // ===================================================
 
-  function handleStatusChange(newStatus: string) {
-  if (!editedParticipant) return;
+  function updateField<
+    K extends keyof Participant
+  >(
+    key: K,
+    value: Participant[K]
+  ) {
+    setEditedParticipant(
+      (current) => {
+        if (
+          !current
+        ) {
+          return current;
+        }
 
-  const updatedParticipant: Participant = {
-    ...editedParticipant,
-    status: newStatus,
-  };
+        return {
+          ...current,
+          [key]: value,
+        };
+      }
+    );
+  }
 
-  setEditedParticipant(updatedParticipant);
-  onSave(updatedParticipant);
-}
+  // ===================================================
+  // CHANGE PEMBIMBING
+  // ===================================================
+
+  function handlePembimbingChange(
+    pembimbingId: string
+  ) {
+    const selected =
+      pembimbingOptions.find(
+        (item) =>
+          item.id ===
+          pembimbingId
+      );
+
+    setEditedParticipant(
+      (current) => {
+        if (
+          !current
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+
+          pembimbingId:
+            pembimbingId ||
+            null,
+
+          pembimbing:
+            selected
+              ?.nama ||
+            "-",
+        };
+      }
+    );
+  }
+
+  // ===================================================
+  // SAVE
+  // ===================================================
+
+  async function handleSave() {
+    if (
+      !currentParticipant
+        .nama
+        .trim()
+    ) {
+      setSaveError(
+        "Nama peserta wajib diisi."
+      );
+
+      return;
+    }
+
+    // ===============================================
+    // VALIDASI PERIODE
+    // ===============================================
+
+    if (
+      currentParticipant
+        .tanggalSelesai &&
+      !currentParticipant
+        .tanggalMulai
+    ) {
+      setSaveError(
+        "Tanggal mulai harus diisi jika tanggal selesai diisi."
+      );
+
+      return;
+    }
+
+    if (
+      currentParticipant
+        .tanggalMulai &&
+      currentParticipant
+        .tanggalSelesai &&
+      currentParticipant
+        .tanggalSelesai <
+        currentParticipant
+          .tanggalMulai
+    ) {
+      setSaveError(
+        "Tanggal selesai tidak boleh sebelum tanggal mulai."
+      );
+
+      return;
+    }
+
+    // ===============================================
+    // PENEMPATAN
+    // ===============================================
+
+    const hasPlacement =
+      Boolean(
+        currentParticipant
+          .pembimbingId ||
+          currentParticipant
+            .posisi
+            .trim() ||
+          currentParticipant
+            .divisi
+            .trim() ||
+          currentParticipant
+            .tanggalMulai ||
+          currentParticipant
+            .tanggalSelesai
+      );
+
+    if (
+      hasPlacement &&
+      !currentParticipant
+        .tanggalMulai
+    ) {
+      setSaveError(
+        "Tanggal mulai wajib diisi untuk menyimpan penempatan."
+      );
+
+      return;
+    }
+
+    try {
+      setIsSaving(
+        true
+      );
+
+      setSaveError("");
+
+      await onSave(
+        currentParticipant
+      );
+
+      setIsEditing(
+        false
+      );
+    } catch (error) {
+      console.error(
+        "DRAWER SAVE ERROR:",
+        error
+      );
+
+      setSaveError(
+        "Data gagal disimpan."
+      );
+    } finally {
+      setIsSaving(
+        false
+      );
+    }
+  }
+
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
     <>
-      {/* =========================
+      {/* =================================================
           OVERLAY
-      ========================== */}
+      ================================================= */}
 
       <div
-        onClick={onClose}
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
+        onClick={
+          isSaving
+            ? undefined
+            : onClose
+        }
+        className="fixed inset-0 z-40 bg-black/30"
       />
 
-      {/* =========================
+      {/* =================================================
           DRAWER
-      ========================== */}
+      ================================================= */}
 
-      <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
+      <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-2xl overflow-y-auto bg-white shadow-2xl">
 
-        {/* =========================
+        {/* ===============================================
             HEADER
-        ========================== */}
+        =============================================== */}
 
-        <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-white px-6 py-5">
+        <div className="flex items-center justify-between border-b px-6 py-5">
 
           <div>
-            <h2 className="text-xl font-bold">
+
+            <h2 className="text-2xl font-bold">
               Detail Peserta
             </h2>
 
             <p className="mt-1 text-sm text-gray-500">
-              Informasi lengkap peserta magang.
+              Informasi peserta
+              dan penempatan
+              magang.
             </p>
+
           </div>
 
           <button
-            onClick={onClose}
-            className="rounded-lg p-2 transition hover:bg-gray-100"
+            type="button"
+            disabled={
+              isSaving
+            }
+            onClick={
+              onClose
+            }
+            className="rounded-lg p-2 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <X size={22} />
+            <X
+              size={22}
+            />
           </button>
 
         </div>
 
-        {/* =========================
-            CONTENT
-        ========================== */}
+        {/* ===============================================
+            BODY
+        =============================================== */}
 
         <div className="space-y-6 p-6">
 
-          {/* =========================
+          {/* =============================================
               PROFILE
-          ========================== */}
+          ============================================== */}
 
           <div className="flex items-center gap-4">
 
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-100 text-2xl font-bold text-blue-600">
-              {currentParticipant.nama
-                .split(" ")
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-600">
+              {getInitials(
+                currentParticipant.nama
+              )}
             </div>
 
             <div className="min-w-0">
 
-              <h2 className="text-2xl font-bold">
-                {currentParticipant.nama}
-              </h2>
+              <h1 className="break-words text-2xl font-bold">
+                {
+                  currentParticipant.nama ||
+                  "-"
+                }
+              </h1>
 
-              <p className="truncate text-gray-500">
-                {currentParticipant.email}
+              <p className="mt-1 text-gray-500">
+                {
+                  currentParticipant.email
+                }
               </p>
 
-              <StatusBadge
-                status={currentParticipant.status}
-              />
+              <div className="mt-2">
 
-            </div>
-
-          </div>
-
-          {/* =========================
-              PROGRESS
-          ========================== */}
-
-          <div className="rounded-xl border border-gray-200 p-5">
-
-            <h3 className="mb-4 font-semibold">
-              Progress Magang
-            </h3>
-
-            <ProgressBar
-              progress={
-                currentParticipant.status === "Aktif"
-                  ? 60
-                  : currentParticipant.status === "Selesai"
-                  ? 100
-                  : 0
-              }
-            />
-
-          </div>
-
-          {/* =========================
-              INFORMASI PESERTA
-          ========================== */}
-
-          <div className="rounded-xl border border-gray-200">
-
-            <div className="border-b px-5 py-4 font-semibold">
-              Informasi Peserta
-            </div>
-
-            <div className="space-y-5 p-5">
-
-              {/* Sekolah */}
-
-              <Item
-                icon={<GraduationCap size={18} />}
-                title="Sekolah"
-                value={currentParticipant.sekolah}
-              />
-
-              {/* Posisi */}
-
-              <Item
-                icon={<Building2 size={18} />}
-                title="Posisi"
-                value={currentParticipant.posisi}
-              />
-
-              {/* Divisi */}
-
-              <Item
-                icon={<Building2 size={18} />}
-                title="Divisi"
-                value={currentParticipant.divisi}
-              />
-
-              {/* Pembimbing */}
-
-              <Item
-                icon={<User size={18} />}
-                title="Pembimbing"
-                value={currentParticipant.pembimbing}
-              />
-
-              {/* Periode */}
-
-              <Item
-                icon={<Calendar size={18} />}
-                title="Periode"
-                value={`${currentParticipant.mulai} - ${currentParticipant.selesai}`}
-              />
-
-              {/* Email */}
-
-              <Item
-                icon={<Mail size={18} />}
-                title="Email"
-                value={currentParticipant.email}
-              />
-
-            </div>
-
-          </div>
-
-          {/* =========================
-              KEHADIRAN
-          ========================== */}
-
-          <div className="rounded-xl border border-gray-200 p-5">
-
-            <h3 className="mb-5 font-semibold">
-              Ringkasan Kehadiran
-            </h3>
-
-            <div className="grid grid-cols-3 gap-4">
-
-              <AttendanceCard
-                title="Hadir"
-                value="94%"
-                color="bg-green-100 text-green-700"
-              />
-
-              <AttendanceCard
-                title="Izin"
-                value="3"
-                color="bg-yellow-100 text-yellow-700"
-              />
-
-              <AttendanceCard
-                title="Terlambat"
-                value="2"
-                color="bg-red-100 text-red-700"
-              />
-
-            </div>
-
-          </div>
-
-          {/* =========================
-              EVALUASI
-          ========================== */}
-
-          <div className="rounded-xl border border-gray-200 p-5">
-
-            <h3 className="mb-5 font-semibold">
-              Evaluasi
-            </h3>
-
-            <Score
-              label="Disiplin"
-              value={95}
-            />
-
-            <Score
-              label="Komunikasi"
-              value={92}
-            />
-
-            <Score
-              label="Kerja Tim"
-              value={90}
-            />
-
-            <Score
-              label="Teknis"
-              value={88}
-            />
-
-          </div>
-
-          {/* =========================
-              CATATAN
-          ========================== */}
-
-          <div className="rounded-xl border border-gray-200 p-5">
-
-            <h3 className="mb-4 font-semibold">
-              Catatan Pembimbing
-            </h3>
-
-            <p className="text-gray-600">
-              Peserta menunjukkan perkembangan yang
-              baik, aktif bertanya, serta mampu
-              menyelesaikan tugas sesuai target yang
-              diberikan.
-            </p>
-
-          </div>
-
-          {/* =========================
-              EDIT DATA
-          ========================== */}
-
-          {isEditing && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-
-              <h3 className="mb-5 font-semibold">
-                Ubah Data Peserta
-              </h3>
-
-              <div className="space-y-4">
-
-                <InputField
-                  label="Nama"
-                  value={currentParticipant.nama}
-                  onChange={(value) =>
-                    updateField("nama", value)
-                  }
-                />
-
-                <InputField
-                  label="Email"
-                  value={currentParticipant.email}
-                  onChange={(value) =>
-                    updateField("email", value)
-                  }
-                />
-
-                <InputField
-                  label="Sekolah"
-                  value={currentParticipant.sekolah}
-                  onChange={(value) =>
-                    updateField("sekolah", value)
-                  }
-                />
-
-                <InputField
-                  label="Posisi"
-                  value={currentParticipant.posisi}
-                  onChange={(value) =>
-                    updateField("posisi", value)
-                  }
-                />
-
-                <InputField
-                  label="Divisi"
-                  value={currentParticipant.divisi}
-                  onChange={(value) =>
-                    updateField("divisi", value)
-                  }
-                />
-
-                <InputField
-                  label="Pembimbing"
-                  value={currentParticipant.pembimbing}
-                  onChange={(value) =>
-                    updateField("pembimbing", value)
-                  }
-                />
-
-                <InputField
-                  label="Tanggal Mulai"
-                  value={currentParticipant.mulai}
-                  onChange={(value) =>
-                    updateField("mulai", value)
-                  }
-                />
-
-                <InputField
-                  label="Tanggal Selesai"
-                  value={currentParticipant.selesai}
-                  onChange={(value) =>
-                    updateField("selesai", value)
+                <StatusBadge
+                  status={
+                    currentParticipant.status
                   }
                 />
 
               </div>
 
             </div>
-          )}
-
-        </div>
-
-        {/* =========================
-            FOOTER
-        ========================== */}
-
-        <div className="sticky bottom-0 flex gap-3 border-t bg-white p-6">
-
-          {/* UBAH STATUS */}
-
-          <div className="relative flex-1">
-
-            <select
-              value={currentParticipant.status}
-              onChange={(e) =>
-                handleStatusChange(e.target.value)
-              }
-              className="w-full appearance-none rounded-xl border border-yellow-500 bg-white px-4 py-3 text-center font-medium text-yellow-600 outline-none focus:ring-2 focus:ring-yellow-200"
-            >
-              <option value="Aktif">
-                Aktif
-              </option>
-
-              <option value="Selesai">
-                Selesai
-              </option>
-
-              <option value="Ditunda">
-                Ditunda
-              </option>
-            </select>
 
           </div>
 
-          {/* EDIT / SIMPAN */}
+          {/* =============================================
+              ERROR
+          ============================================== */}
+
+          {saveError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {saveError}
+            </div>
+          )}
+
+          {/* =============================================
+              DATA UTAMA
+          ============================================== */}
+
+          <Section
+            title="Data Peserta"
+          >
+
+            {isEditing ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                {/* NAMA */}
+
+                <FormField
+                  label="Nama Lengkap"
+                >
+                  <input
+                    type="text"
+                    value={
+                      currentParticipant.nama
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "nama",
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+                {/* EMAIL READ ONLY */}
+
+                <FormField
+                  label="Email"
+                >
+                  <input
+                    type="email"
+                    disabled
+                    value={
+                      currentParticipant.email
+                    }
+                    className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500"
+                  />
+                </FormField>
+
+                {/* SEKOLAH */}
+
+                <FormField
+                  label="Sekolah / Kampus"
+                >
+                  <input
+                    type="text"
+                    value={
+                      currentParticipant.sekolah
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "sekolah",
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+                {/* STATUS */}
+
+                <FormField
+                  label="Status Peserta"
+                >
+                  <select
+                    value={
+                      currentParticipant.status
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "status",
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  >
+                    <option>
+                      Diterima
+                    </option>
+
+                    <option>
+                      Aktif
+                    </option>
+
+                    <option>
+                      Selesai
+                    </option>
+                  </select>
+                </FormField>
+
+              </div>
+            ) : (
+              <div className="space-y-5">
+
+                <InfoItem
+                  icon={
+                    <User
+                      size={18}
+                    />
+                  }
+                  title="Nama"
+                  value={
+                    currentParticipant.nama
+                  }
+                />
+
+                <InfoItem
+                  icon={
+                    <Mail
+                      size={18}
+                    />
+                  }
+                  title="Email"
+                  value={
+                    currentParticipant.email
+                  }
+                />
+
+                <InfoItem
+                  icon={
+                    <GraduationCap
+                      size={18}
+                    />
+                  }
+                  title="Sekolah / Kampus"
+                  value={
+                    currentParticipant.sekolah
+                  }
+                />
+
+              </div>
+            )}
+
+          </Section>
+
+          {/* =============================================
+              PENEMPATAN
+          ============================================== */}
+
+          <Section
+            title="Penempatan Magang"
+          >
+
+            {isEditing ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                {/* POSISI */}
+
+                <FormField
+                  label="Posisi"
+                >
+                  <input
+                    type="text"
+                    value={
+                      currentParticipant.posisi
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "posisi",
+                        e.target
+                          .value
+                      )
+                    }
+                    placeholder="Contoh: Software Engineer"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+                {/* DIVISI */}
+
+                <FormField
+                  label="Divisi"
+                >
+                  <input
+                    type="text"
+                    value={
+                      currentParticipant.divisi
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "divisi",
+                        e.target
+                          .value
+                      )
+                    }
+                    placeholder="Contoh: IT Development"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+                {/* PEMBIMBING */}
+
+                <FormField
+                  label="Pembimbing"
+                >
+                  <select
+                    value={
+                      currentParticipant
+                        .pembimbingId ||
+                      ""
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      handlePembimbingChange(
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  >
+
+                    <option value="">
+                      Belum ditentukan
+                    </option>
+
+                    {pembimbingOptions.map(
+                      (
+                        pembimbing
+                      ) => (
+                        <option
+                          key={
+                            pembimbing.id
+                          }
+                          value={
+                            pembimbing.id
+                          }
+                        >
+                          {
+                            pembimbing.nama
+                          }
+                        </option>
+                      )
+                    )}
+
+                  </select>
+                </FormField>
+
+                {/* TANGGAL MULAI */}
+
+                <FormField
+                  label="Tanggal Mulai"
+                >
+                  <input
+                    type="date"
+                    value={
+                      currentParticipant.tanggalMulai
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "tanggalMulai",
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+                {/* TANGGAL SELESAI */}
+
+                <FormField
+                  label="Tanggal Selesai"
+                >
+                  <input
+                    type="date"
+                    value={
+                      currentParticipant.tanggalSelesai
+                    }
+                    min={
+                      currentParticipant.tanggalMulai ||
+                      undefined
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      updateField(
+                        "tanggalSelesai",
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+                  />
+                </FormField>
+
+              </div>
+            ) : (
+              <div className="space-y-5">
+
+                <InfoItem
+                  icon={
+                    <Building2
+                      size={18}
+                    />
+                  }
+                  title="Posisi"
+                  value={
+                    currentParticipant.posisi
+                  }
+                />
+
+                <InfoItem
+                  icon={
+                    <Building2
+                      size={18}
+                    />
+                  }
+                  title="Divisi"
+                  value={
+                    currentParticipant.divisi
+                  }
+                />
+
+                <InfoItem
+                  icon={
+                    <UserRoundCheck
+                      size={18}
+                    />
+                  }
+                  title="Pembimbing"
+                  value={
+                    currentParticipant.pembimbing
+                  }
+                />
+
+                <InfoItem
+                  icon={
+                    <Calendar
+                      size={18}
+                    />
+                  }
+                  title="Periode Magang"
+                  value={`${currentParticipant.mulai} - ${currentParticipant.selesai}`}
+                />
+
+              </div>
+            )}
+
+          </Section>
+
+          {/* =============================================
+              ABSENSI
+          ============================================== */}
+
+          <Section
+            title="Ringkasan Absensi"
+          >
+
+            {detailLoading ? (
+              <p className="text-sm text-gray-400">
+                Memuat absensi...
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+
+                <SummaryCard
+                  title="Hadir"
+                  value={
+                    attendance.hadir
+                  }
+                />
+
+                <SummaryCard
+                  title="Terlambat"
+                  value={
+                    attendance.terlambat
+                  }
+                />
+
+                <SummaryCard
+                  title="Izin / Sakit"
+                  value={
+                    attendance.izin
+                  }
+                />
+
+              </div>
+            )}
+
+          </Section>
+
+          {/* =============================================
+              PENILAIAN
+          ============================================== */}
+
+          <Section
+            title="Penilaian"
+          >
+
+            {detailLoading ? (
+              <p className="text-sm text-gray-400">
+                Memuat penilaian...
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+
+                  <ScoreCard
+                    title="Kehadiran"
+                    value={
+                      evaluation.kehadiran
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Disiplin"
+                    value={
+                      evaluation.kedisiplinan
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Tanggung Jawab"
+                    value={
+                      evaluation.tanggungJawab
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Sikap"
+                    value={
+                      evaluation.sikap
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Komunikasi"
+                    value={
+                      evaluation.komunikasi
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Kerja Sama"
+                    value={
+                      evaluation.kerjaSama
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Tugas"
+                    value={
+                      evaluation.tugas
+                    }
+                  />
+
+                  <ScoreCard
+                    title="Laporan"
+                    value={
+                      evaluation.laporan
+                    }
+                  />
+
+                </div>
+
+                <div className="mt-4 rounded-xl bg-gray-50 p-4">
+
+                  <p className="text-sm font-medium text-gray-700">
+                    Catatan Pembimbing
+                  </p>
+
+                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-500">
+                    {
+                      evaluation.catatan ||
+                      "Belum ada catatan."
+                    }
+                  </p>
+
+                </div>
+              </>
+            )}
+
+          </Section>
+
+        </div>
+
+        {/* ===============================================
+            FOOTER
+        =============================================== */}
+
+        <div className="sticky bottom-0 border-t bg-white p-6">
 
           {!isEditing ? (
+
             <button
-              onClick={() => setIsEditing(true)}
-              className="flex-1 rounded-xl bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700"
+              type="button"
+              onClick={
+                handleStartEdit
+              }
+              className="w-full rounded-xl bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700"
             >
               Ubah Data
             </button>
+
           ) : (
-            <button
-              onClick={handleSave}
-              className="flex-1 rounded-xl bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700"
-            >
-              Simpan
-            </button>
+
+            <div className="flex gap-3">
+
+              <button
+                type="button"
+                disabled={
+                  isSaving
+                }
+                onClick={
+                  handleCancelEdit
+                }
+                className="flex-1 rounded-xl border border-gray-300 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  isSaving
+                }
+                onClick={
+                  handleSave
+                }
+                className="flex-1 rounded-xl bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSaving
+                  ? "Menyimpan..."
+                  : "Simpan"}
+              </button>
+
+            </div>
+
           )}
 
         </div>
@@ -478,72 +1463,85 @@ export default function ParticipantDrawer({
   );
 }
 
+// =====================================================
+// SECTION
+// =====================================================
 
-/* =====================================================
-   COMPONENT ITEM
-===================================================== */
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200">
 
-function Item({
+      <div className="border-b px-5 py-4 font-semibold">
+        {title}
+      </div>
+
+      <div className="p-5">
+        {children}
+      </div>
+
+    </div>
+  );
+}
+
+// =====================================================
+// FORM FIELD
+// =====================================================
+
+function FormField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+
+      <label className="mb-2 block text-sm font-medium text-gray-700">
+        {label}
+      </label>
+
+      {children}
+
+    </div>
+  );
+}
+
+// =====================================================
+// INFO ITEM
+// =====================================================
+
+function InfoItem({
   icon,
   title,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   value: string;
 }) {
   return (
     <div className="flex items-center gap-4">
 
-      <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
+      <div className="shrink-0 rounded-lg bg-blue-50 p-3 text-blue-600">
         {icon}
       </div>
 
-      <div>
+      <div className="min-w-0">
+
         <p className="text-sm text-gray-500">
           {title}
         </p>
 
-        <p className="font-medium">
-          {value}
+        <p className="break-words font-medium text-gray-800">
+          {value || "-"}
         </p>
-      </div>
-
-    </div>
-  );
-}
-
-
-/* =====================================================
-   PROGRESS BAR
-===================================================== */
-
-function ProgressBar({
-  progress,
-}: {
-  progress: number;
-}) {
-  return (
-    <div>
-
-      <div className="mb-2 flex justify-between">
-
-        <span>Progress</span>
-
-        <span>
-          {progress}%
-        </span>
-
-      </div>
-
-      <div className="h-3 rounded-full bg-gray-200">
-
-        <div
-          className="h-3 rounded-full bg-blue-600 transition-all"
-          style={{
-            width: `${progress}%`,
-          }}
-        />
 
       </div>
 
@@ -551,30 +1549,25 @@ function ProgressBar({
   );
 }
 
+// =====================================================
+// SUMMARY CARD
+// =====================================================
 
-/* =====================================================
-   ATTENDANCE CARD
-===================================================== */
-
-function AttendanceCard({
+function SummaryCard({
   title,
   value,
-  color,
 }: {
   title: string;
-  value: string;
-  color: string;
+  value: number;
 }) {
   return (
-    <div
-      className={`rounded-xl p-4 text-center ${color}`}
-    >
+    <div className="rounded-xl bg-gray-50 p-4 text-center">
 
-      <h4 className="text-2xl font-bold">
+      <p className="text-2xl font-bold text-gray-800">
         {value}
-      </h4>
+      </p>
 
-      <p className="mt-1 text-sm">
+      <p className="mt-1 text-xs text-gray-500">
         {title}
       </p>
 
@@ -582,102 +1575,133 @@ function AttendanceCard({
   );
 }
 
+// =====================================================
+// SCORE CARD
+// =====================================================
 
-/* =====================================================
-   SCORE
-===================================================== */
-
-function Score({
-  label,
+function ScoreCard({
+  title,
   value,
 }: {
-  label: string;
-  value: number;
+  title: string;
+
+  value:
+    | number
+    | null;
 }) {
+  const safeValue =
+    value === null
+      ? null
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            value
+          )
+        );
+
   return (
-    <div className="mb-5">
+    <div className="rounded-xl bg-gray-50 p-4">
 
-      <div className="mb-2 flex justify-between">
+      <p className="text-xs text-gray-500">
+        {title}
+      </p>
 
-        <span>{label}</span>
-
-        <span className="font-semibold">
-          {value}%
-        </span>
-
-      </div>
-
-      <div className="h-2 rounded-full bg-gray-200">
-
-        <div
-          className="h-2 rounded-full bg-blue-600"
-          style={{
-            width: `${value}%`,
-          }}
-        />
-
-      </div>
+      <p className="mt-2 text-xl font-bold text-gray-800">
+        {safeValue ===
+        null
+          ? "-"
+          : safeValue}
+      </p>
 
     </div>
   );
 }
 
-
-/* =====================================================
-   STATUS BADGE
-===================================================== */
+// =====================================================
+// STATUS
+// =====================================================
 
 function StatusBadge({
   status,
 }: {
   status: string;
 }) {
-  const color =
+  let style =
+    "bg-gray-100 text-gray-700";
+
+  if (
     status === "Aktif"
-      ? "bg-green-100 text-green-700"
-      : status === "Selesai"
-      ? "bg-blue-100 text-blue-700"
-      : "bg-yellow-100 text-yellow-700";
+  ) {
+    style =
+      "bg-green-100 text-green-700";
+  }
+
+  if (
+    status ===
+    "Diterima"
+  ) {
+    style =
+      "bg-yellow-100 text-yellow-700";
+  }
+
+  if (
+    status ===
+    "Selesai"
+  ) {
+    style =
+      "bg-blue-100 text-blue-700";
+  }
 
   return (
     <span
-      className={`mt-3 inline-block rounded-full px-4 py-1 text-sm font-semibold ${color}`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${style}`}
     >
       {status}
     </span>
   );
 }
 
+// =====================================================
+// INITIAL
+// =====================================================
 
-/* =====================================================
-   INPUT FIELD
-===================================================== */
+function getInitials(
+  name: string
+) {
+  if (
+    !name ||
+    name === "-"
+  ) {
+    return "?";
+  }
 
-function InputField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div>
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(
+      (word) =>
+        word[0]
+    )
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
-      <label className="mb-1 block text-sm font-medium text-gray-700">
-        {label}
-      </label>
+// =====================================================
+// NORMALIZE
+// =====================================================
 
-      <input
-        type="text"
-        value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-      />
+function normalizeEditable(
+  value: string
+) {
+  if (
+    !value ||
+    value === "-"
+  ) {
+    return "";
+  }
 
-    </div>
-  );
+  return value;
 }

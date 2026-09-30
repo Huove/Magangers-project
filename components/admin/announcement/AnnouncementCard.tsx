@@ -13,18 +13,9 @@ import { Announcement } from "@/app/admin/pengumuman/page";
 
 interface Props {
   data: Announcement[];
-
-  onDetail: (
-    announcement: Announcement
-  ) => void;
-
-  onEdit: (
-    announcement: Announcement
-  ) => void;
-
-  onDelete: (
-    id: number
-  ) => void;
+  onDetail: (announcement: Announcement) => void;
+  onEdit: (announcement: Announcement) => void;
+  onDelete: (id: string) => void;
 }
 
 export default function AnnouncementCard({

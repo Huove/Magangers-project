@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import StatCard from "@/components/admin/dashboard/StatisticCard";
 import ApplicantChart from "@/components/admin/dashboard/ApplicantChart";
@@ -13,389 +16,558 @@ import { supabase } from "@/lib/supabase";
 
 import {
   Users,
-  FileCheck,
-  ClipboardCheck,
   UserCheck,
-  CalendarClock,
-  BadgeCheck,
-  BriefcaseBusiness,
   CircleCheckBig,
-  CircleX,
+  BadgeCheck,
+  FileText,
   Clock3,
+  Bell,
+  Send,
+  BellRing,
+  UserRoundCheck,
+  UserRoundX,
 } from "lucide-react";
 
-interface DashboardStats {
-  totalApplicant: number;
-  newApplicant: number;
-  waitingVerification: number;
-  acceptedData: number;
-  waitingInterview: number;
-  waitingResult: number;
-  accepted: number;
-  active: number;
-  finished: number;
-  rejected: number;
+// =====================================================
+// TYPE RPC DATABASE
+// =====================================================
+
+interface DashboardRpcRow {
+  total_peserta: number;
+
+  peserta_diterima: number;
+  peserta_aktif: number;
+  peserta_selesai: number;
+
+  total_laporan: number;
+  laporan_menunggu: number;
+  laporan_direvisi: number;
+  laporan_disetujui: number;
+  laporan_ditolak: number;
+
+  total_pengumuman: number;
+  pengumuman_draft: number;
+  pengumuman_terjadwal: number;
+  pengumuman_dipublikasikan: number;
+
+  total_notifikasi: number;
+  notifikasi_belum_dibaca: number;
+
+  total_penempatan: number;
+  peserta_dengan_pembimbing: number;
 }
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalApplicant: 0,
-    newApplicant: 0,
-    waitingVerification: 0,
-    acceptedData: 0,
-    waitingInterview: 0,
-    waitingResult: 0,
-    accepted: 0,
-    active: 0,
-    finished: 0,
-    rejected: 0,
-  });
+// =====================================================
+// TYPE FRONTEND
+// =====================================================
 
-  const [loading, setLoading] = useState(true);
+interface DashboardStats {
+  totalPeserta: number;
+
+  diterima: number;
+  aktif: number;
+  selesai: number;
+  diberhentikan: number;
+
+  totalLaporan: number;
+  laporanMenunggu: number;
+
+  totalPengumuman: number;
+  pengumumanPublished: number;
+
+  notifikasiBelumDibaca: number;
+
+  pesertaDenganPembimbing: number;
+}
+
+// =====================================================
+// INITIAL
+// =====================================================
+
+const initialStats: DashboardStats = {
+  totalPeserta: 0,
+
+  diterima: 0,
+  aktif: 0,
+  selesai: 0,
+  diberhentikan: 0,
+
+  totalLaporan: 0,
+  laporanMenunggu: 0,
+
+  totalPengumuman: 0,
+  pengumumanPublished: 0,
+
+  notifikasiBelumDibaca: 0,
+
+  pesertaDenganPembimbing: 0,
+};
+
+// =====================================================
+// PAGE
+// =====================================================
+
+export default function DashboardPage() {
+  const [
+    stats,
+    setStats,
+  ] = useState<DashboardStats>(
+    initialStats
+  );
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  // ===================================================
+  // LOAD
+  // ===================================================
 
   useEffect(() => {
     loadDashboard();
   }, []);
 
+  // ===================================================
+  // LOAD DASHBOARD
+  // ===================================================
+
   async function loadDashboard() {
     try {
       setLoading(true);
 
-      // ==========================================
-      // 1. JUMLAH PENDAFTAR
-      // ==========================================
+      setError("");
 
-      const { count: totalApplicant, error: applicantError } =
-        await supabase
-          .from("profiles")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("role", "pendaftar");
-
-      if (applicantError) {
-        console.error(
-          "TOTAL APPLICANT ERROR:",
-          applicantError
-        );
-      }
-
-      // ==========================================
-      // 2. PENGAJUAN BARU
-      // status = draft
-      // ==========================================
-
-      const { count: newApplicant, error: newApplicantError } =
-        await supabase
-          .from("pengajuan_magang")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "draft");
-
-      if (newApplicantError) {
-        console.error(
-          "NEW APPLICANT ERROR:",
-          newApplicantError
-        );
-      }
-
-      // ==========================================
-      // 3. MENUNGGU PEMERIKSAAN
-      // status = diajukan
-      // ==========================================
+      // ===============================================
+      // SATU RPC UNTUK SEMUA STATISTIK ADMIN
+      // ===============================================
+      //
+      // Tidak query:
+      // - pelamar
+      // - pengajuan_magang
+      // - wawancara
+      //
+      // ===============================================
 
       const {
-        count: waitingVerification,
-        error: verificationError,
-      } = await supabase
-        .from("pengajuan_magang")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("status", "diajukan");
+        data,
+        error: rpcError,
+      } = await supabase.rpc(
+        "admin_dashboard_ringkasan"
+      );
 
-      if (verificationError) {
-        console.error(
-          "VERIFICATION ERROR:",
-          verificationError
-        );
+      if (
+        rpcError
+      ) {
+        throw rpcError;
       }
 
-      // ==========================================
-      // 4. DATA DIRI DITERIMA
-      // peserta.status = diterima
-      // ==========================================
+      // Karena function RETURNS TABLE,
+      // hasil Supabase berbentuk array.
+
+      const rows =
+        (data ||
+          []) as DashboardRpcRow[];
+
+      const result =
+        rows[0];
+
+      // ===============================================
+      // JIKA DATA KOSONG
+      // ===============================================
+
+      if (
+        !result
+      ) {
+        setStats(
+          initialStats
+        );
+
+        return;
+      }
+
+      // ===============================================
+      // PESERTA DIBERHENTIKAN
+      //
+      // RPC dashboard dibuat sebelum status
+      // "diberhentikan" ditambahkan, jadi hitung
+      // status ini secara terpisah agar dashboard
+      // tetap menampilkan kondisi terbaru.
+      // ===============================================
 
       const {
-        count: acceptedData,
-        error: acceptedDataError,
-      } = await supabase
-        .from("peserta")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("status", "diterima");
+        count:
+          terminatedCount,
 
-      if (acceptedDataError) {
-        console.error(
-          "ACCEPTED DATA ERROR:",
-          acceptedDataError
-        );
-      }
-
-      // ==========================================
-      // 5. PESERTA DITERIMA
-      // pengajuan_magang.status = diterima
-      // ==========================================
-
-      const { count: accepted, error: acceptedError } =
+        error:
+          terminatedError,
+      } =
         await supabase
-          .from("pengajuan_magang")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "diterima");
+          .from(
+            "peserta"
+          )
+          .select(
+            "id",
+            {
+              count:
+                "exact",
 
-      if (acceptedError) {
-        console.error(
-          "ACCEPTED ERROR:",
-          acceptedError
+              head:
+                true,
+            }
+          )
+          .eq(
+            "status",
+            "diberhentikan"
+          );
+
+
+      if (
+        terminatedError
+      ) {
+        console.warn(
+          "DASHBOARD TERMINATED COUNT:",
+          terminatedError
         );
       }
 
-      // ==========================================
-      // 6. PESERTA AKTIF
-      // peserta.status = aktif
-      // ==========================================
 
-      const { count: active, error: activeError } =
-        await supabase
-          .from("peserta")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "aktif");
-
-      if (activeError) {
-        console.error(
-          "ACTIVE ERROR:",
-          activeError
-        );
-      }
-
-      // ==========================================
-      // 7. PESERTA SELESAI
-      // peserta.status = selesai
-      // ==========================================
-
-      const { count: finished, error: finishedError } =
-        await supabase
-          .from("peserta")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "selesai");
-
-      if (finishedError) {
-        console.error(
-          "FINISHED ERROR:",
-          finishedError
-        );
-      }
-
-      // ==========================================
-      // 8. PESERTA DITOLAK
-      // pengajuan_magang.status = ditolak
-      // ==========================================
-
-      const { count: rejected, error: rejectedError } =
-        await supabase
-          .from("pengajuan_magang")
-          .select("id", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "ditolak");
-
-      if (rejectedError) {
-        console.error(
-          "REJECTED ERROR:",
-          rejectedError
-        );
-      }
-
-      // ==========================================
-      // WAWANCARA & HASIL
-      //
-      // Saat ini belum ada tabel wawancara
-      // di database kamu.
-      //
-      // Jadi sementara = 0
-      // ==========================================
-
-      const waitingInterview = 0;
-      const waitingResult = 0;
-
-      // ==========================================
-      // SET DATA DASHBOARD
-      // ==========================================
+      // ===============================================
+      // MAP DATABASE → FRONTEND
+      // ===============================================
 
       setStats({
-        totalApplicant: totalApplicant ?? 0,
-        newApplicant: newApplicant ?? 0,
-        waitingVerification: waitingVerification ?? 0,
-        acceptedData: acceptedData ?? 0,
-        waitingInterview,
-        waitingResult,
-        accepted: accepted ?? 0,
-        active: active ?? 0,
-        finished: finished ?? 0,
-        rejected: rejected ?? 0,
+        totalPeserta:
+          Number(
+            result.total_peserta
+          ) || 0,
+
+        diterima:
+          Number(
+            result.peserta_diterima
+          ) || 0,
+
+        aktif:
+          Number(
+            result.peserta_aktif
+          ) || 0,
+
+        selesai:
+          Number(
+            result.peserta_selesai
+          ) || 0,
+
+        diberhentikan:
+          terminatedCount ??
+          0,
+
+        totalLaporan:
+          Number(
+            result.total_laporan
+          ) || 0,
+
+        laporanMenunggu:
+          Number(
+            result.laporan_menunggu
+          ) || 0,
+
+        totalPengumuman:
+          Number(
+            result.total_pengumuman
+          ) || 0,
+
+        pengumumanPublished:
+          Number(
+            result.pengumuman_dipublikasikan
+          ) || 0,
+
+        notifikasiBelumDibaca:
+          Number(
+            result.notifikasi_belum_dibaca
+          ) || 0,
+
+        pesertaDenganPembimbing:
+          Number(
+            result.peserta_dengan_pembimbing
+          ) || 0,
       });
-    } catch (error) {
+
+      console.log(
+        "DASHBOARD RPC:",
+        result
+      );
+    } catch (err) {
       console.error(
         "DASHBOARD ERROR:",
-        error
+        err
+      );
+
+      setError(
+        "Gagal mengambil statistik dashboard."
+      );
+
+      setStats(
+        initialStats
       );
     } finally {
       setLoading(false);
     }
   }
 
+  // ===================================================
+  // REFRESH
+  // ===================================================
+
+  async function handleRefresh() {
+    await loadDashboard();
+  }
+
+  // ===================================================
+  // RENDER
+  // ===================================================
+
   return (
     <div className="space-y-8">
 
-      {/* ==========================================
-          JUDUL
-      ========================================== */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
-      <div>
-        <h1 className="text-3xl font-bold">
-          Dashboard Administrator
-        </h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-        <p className="mt-1 text-gray-500">
-          Ringkasan aktivitas sistem magang.
-        </p>
+        <div>
+
+          <h1 className="text-3xl font-bold">
+            Dashboard Administrator
+          </h1>
+
+          <p className="mt-1 text-gray-500">
+            Ringkasan aktivitas
+            sistem magang.
+          </p>
+
+        </div>
+
+        {/* REFRESH */}
+
+        <button
+          type="button"
+          disabled={
+            loading
+          }
+          onClick={
+            handleRefresh
+          }
+          className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading
+            ? "Memuat..."
+            : "Refresh"}
+        </button>
+
       </div>
 
+      {/* =================================================
+          ERROR
+      ================================================= */}
 
-      <div className="grid grid-cols-5 gap-5">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {/* =================================================
+          STATISTIC CARD
+      ================================================= */}
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+
+        {/* TOTAL PESERTA */}
 
         <StatCard
-          title="Jumlah Pendaftar"
-          value={stats.totalApplicant}
+          title="Total Peserta"
+          value={
+            loading
+              ? 0
+              : stats.totalPeserta
+          }
           icon={Users}
           color="#2563EB"
         />
 
-        <StatCard
-          title="Pengajuan Baru"
-          value={stats.newApplicant}
-          icon={FileCheck}
-          color="#7C3AED"
-        />
+        {/* DITERIMA */}
 
         <StatCard
-          title="Menunggu Pemeriksaan"
-          value={stats.waitingVerification}
+          title="Peserta Diterima"
+          value={
+            loading
+              ? 0
+              : stats.diterima
+          }
+          icon={BadgeCheck}
+          color="#0EA5E9"
+        />
+
+        {/* AKTIF */}
+
+        <StatCard
+          title="Peserta Aktif"
+          value={
+            loading
+              ? 0
+              : stats.aktif
+          }
+          icon={UserCheck}
+          color="#22C55E"
+        />
+
+        {/* SELESAI */}
+
+        <StatCard
+          title="Peserta Selesai"
+          value={
+            loading
+              ? 0
+              : stats.selesai
+          }
+          icon={
+            CircleCheckBig
+          }
+          color="#16A34A"
+        />
+
+        {/* DIBERHENTIKAN */}
+
+        <StatCard
+          title="Peserta Diberhentikan"
+          value={
+            loading
+              ? 0
+              : stats.diberhentikan
+          }
+          icon={
+            UserRoundX
+          }
+          color="#EF4444"
+        />
+
+        {/* PEMBIMBING */}
+
+        <StatCard
+          title="Sudah Ada Pembimbing"
+          value={
+            loading
+              ? 0
+              : stats.pesertaDenganPembimbing
+          }
+          icon={
+            UserRoundCheck
+          }
+          color="#14B8A6"
+        />
+
+        {/* TOTAL LAPORAN */}
+
+        <StatCard
+          title="Total Laporan"
+          value={
+            loading
+              ? 0
+              : stats.totalLaporan
+          }
+          icon={FileText}
+          color="#6366F1"
+        />
+
+        {/* LAPORAN MENUNGGU */}
+
+        <StatCard
+          title="Laporan Menunggu"
+          value={
+            loading
+              ? 0
+              : stats.laporanMenunggu
+          }
           icon={Clock3}
           color="#F59E0B"
         />
 
-        <StatCard
-          title="Data Diri Diterima"
-          value={stats.acceptedData}
-          icon={ClipboardCheck}
-          color="#06B6D4"
-        />
+        {/* TOTAL PENGUMUMAN */}
 
         <StatCard
-          title="Menunggu Wawancara"
-          value={stats.waitingInterview}
-          icon={CalendarClock}
-          color="#0EA5E9"
+          title="Total Pengumuman"
+          value={
+            loading
+              ? 0
+              : stats.totalPengumuman
+          }
+          icon={Bell}
+          color="#8B5CF6"
         />
 
-        <StatCard
-          title="Menunggu Hasil"
-          value={stats.waitingResult}
-          icon={UserCheck}
-          color="#6366F1"
-        />
+        {/* PUBLISHED */}
 
         <StatCard
-          title="Peserta Diterima"
-          value={stats.accepted}
-          icon={BadgeCheck}
-          color="#22C55E"
+          title="Pengumuman Publik"
+          value={
+            loading
+              ? 0
+              : stats.pengumumanPublished
+          }
+          icon={Send}
+          color="#10B981"
         />
 
-        <StatCard
-          title="Peserta Aktif"
-          value={stats.active}
-          icon={BriefcaseBusiness}
-          color="#14B8A6"
-        />
+        {/* NOTIFIKASI */}
 
         <StatCard
-          title="Peserta Selesai"
-          value={stats.finished}
-          icon={CircleCheckBig}
-          color="#16A34A"
-        />
-
-        <StatCard
-          title="Peserta Ditolak"
-          value={stats.rejected}
-          icon={CircleX}
+          title="Notifikasi Belum Dibaca"
+          value={
+            loading
+              ? 0
+              : stats.notifikasiBelumDibaca
+          }
+          icon={BellRing}
           color="#EF4444"
         />
 
       </div>
 
-      {/* ==========================================
-          CHART + ACTIVITY
-      ========================================== */}
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
 
-        <div className="col-span-2">
+        <div className="xl:col-span-2">
+
           <ApplicantChart />
+
         </div>
 
         <ActivityTimeline />
 
       </div>
 
-      {/* ==========================================
-          RECENT APPLICATION + INTERVIEW
-      ========================================== */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
 
-      <div className="mt-5 grid grid-cols-3 gap-5">
+        <div className="xl:col-span-2">
 
-        <div className="col-span-2">
           <RecentApplications />
+
         </div>
 
         <InterviewToday />
 
       </div>
 
-      {/* ==========================================
-          QUICK ACTION
-      ========================================== */}
+      <div>
 
-      <div className="mt-5">
         <QuickActions />
+
       </div>
 
     </div>

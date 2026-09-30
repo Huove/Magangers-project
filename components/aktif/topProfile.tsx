@@ -1,121 +1,229 @@
 "use client";
 
-import Image from "next/image";
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import Link from "next/link";
-import { Bell, ChevronDown, User } from "lucide-react";
-import { useState } from "react";
+
+import {
+  Bell,
+  ChevronDown,
+  User,
+} from "lucide-react";
+
+import { supabase } from "@/lib/supabase";
+
+type UserProfile = {
+  nama: string;
+  nomorPeserta: string;
+  fotoUrl: string | null;
+};
 
 export default function TopNavbar() {
-  const [open, setOpen] = useState(false);
+  const [
+    profile,
+    setProfile,
+  ] =
+    useState<UserProfile>({
+      nama: "Peserta Magang",
+      nomorPeserta: "-",
+      fotoUrl: null,
+    });
+
+  const [
+    avatarError,
+    setAvatarError,
+  ] = useState(false);
+
+  // =========================================
+  // FETCH PROFILE
+  // =========================================
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        // =====================================
+        // USER
+        // =====================================
+
+        const {
+          data: { user },
+          error: userError,
+        } =
+          await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          return;
+        }
+
+        // =====================================
+        // PROFILE
+        // =====================================
+
+        const {
+          data: profileData,
+          error: profileError,
+        } = await supabase
+          .from("profiles")
+          .select(`
+            nama_lengkap,
+            foto_url
+          `)
+          .eq(
+            "id",
+            user.id
+          )
+          .maybeSingle();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        // =====================================
+        // PESERTA
+        // =====================================
+
+        const {
+          data: pesertaData,
+          error: pesertaError,
+        } = await supabase
+          .from("peserta")
+          .select(
+            "nomor_peserta"
+          )
+          .eq(
+            "user_id",
+            user.id
+          )
+          .maybeSingle();
+
+        if (pesertaError) {
+          console.error(
+            "Peserta error:",
+            pesertaError
+          );
+        }
+
+        setProfile({
+          nama:
+            profileData
+              ?.nama_lengkap ||
+            "Peserta Magang",
+
+          nomorPeserta:
+            pesertaData
+              ?.nomor_peserta ||
+            "-",
+
+          fotoUrl:
+            profileData
+              ?.foto_url ||
+            null,
+        });
+
+        setAvatarError(false);
+      } catch (err) {
+        console.error(
+          "Gagal mengambil profile navbar:",
+          err
+        );
+      }
+    }
+
+    fetchProfile();
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex h-[76px] flex-shrink-0 items-center justify-end border-b border-neutral-200 bg-white px-6 md:px-8">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/pengumuman"
-          type="button"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
-          aria-label="Notifikasi"
-        >
-          <Bell size={20} />
-        </Link>
-        <div className="relative">
+    <header className="sticky top-0 z-40 flex h-[72px] w-full items-center justify-between border-b border-neutral-200 bg-white/95 px-6 backdrop-blur-md">
 
-          <button
-            type="button"
-            onClick={() => setOpen(!open)}
-            className="flex items-center gap-3 rounded-full border border-neutral-200 bg-white py-1.5 pl-1.5 pr-3 transition hover:bg-neutral-50"
-          >
-            <div className="h-9 w-9 overflow-hidden rounded-full bg-neutral-100">
-              <Image
-                src="/cartyWife.jpeg"
-                width={40}
-                height={40}
-                alt="Foto profil Aldo Saputra"
+      {/* =====================================
+          LEFT
+      ===================================== */}
+
+      <div>
+
+        <p className="text-sm text-neutral-400">
+          Selamat datang,
+        </p>
+
+        <p className="text-sm font-semibold text-neutral-900">
+          {profile.nama}
+        </p>
+
+      </div>
+
+      {/* =====================================
+          RIGHT
+      ===================================== */}
+
+      <div className="flex items-center gap-3">
+
+        {/* PENGUMUMAN */}
+
+        <Link
+          href="/aktif/pengumuman"
+          className="relative flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-blue-600"
+        >
+          <Bell size={19} />
+        </Link>
+
+        {/* DIVIDER */}
+
+        <div className="hidden h-8 w-px bg-neutral-200 sm:block" />
+
+        {/* PROFILE */}
+
+        <Link
+          href="/aktif/profile"
+          className="group flex items-center gap-3 rounded-full p-1.5 pr-3 transition hover:bg-neutral-50"
+        >
+
+          {/* AVATAR */}
+
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
+
+            {profile.fotoUrl ? (
+              <img
+                src={profile.fotoUrl}
+                alt={`Foto ${profile.nama}`}
                 className="h-full w-full object-cover"
               />
-            </div>
-            <div className="hidden text-left sm:block">
-              <p className="text-sm font-semibold text-neutral-900">
-                Aldo Saputra
-              </p>
-
-              <p className="text-[11px] text-neutral-500">
-                Peserta Magang
-              </p>
-            </div>
-
-            <ChevronDown
-              size={16}
-              className={`text-neutral-400 transition-transform duration-200 ${
-                open ? "rotate-180" : ""
-              }`}
-            />
-
-          </button>
-
-          {open && (
-            <>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="fixed inset-0 z-[-1] h-screen w-screen cursor-default"
-                aria-label="Tutup menu"
+            ) : (
+              <User
+                size={20}
+                strokeWidth={1.7}
+                className="text-neutral-400"
               />
+            )}
 
-              <div className="absolute right-0 top-[52px] z-50 w-64 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl">
+          </div>
 
-                <div className="border-b border-neutral-100 p-4">
+          {/* USER */}
 
-                  <div className="flex items-center gap-3">
+          <div className="hidden min-w-0 sm:block">
 
-                    <div className="h-11 w-11 overflow-hidden rounded-full bg-neutral-100">
-                      <Image
-                        src="/cartyWife.jpeg"
-                        width={50}
-                        height={50}
-                        alt="Foto profil"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+            <p className="max-w-[150px] truncate text-sm font-semibold text-neutral-800">
+              {profile.nama}
+            </p>
 
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-neutral-900">
-                        Aldo Saputra
-                      </p>
+            <p className="max-w-[150px] truncate text-[11px] text-neutral-400">
+              {profile.nomorPeserta}
+            </p>
 
-                      <p className="truncate text-xs text-neutral-500">
-                        ASC124JU70JN
-                      </p>
-                    </div>
+          </div>
 
-                  </div>
+          <ChevronDown
+            size={15}
+            className="hidden text-neutral-400 transition group-hover:text-blue-500 sm:block"
+          />
 
-                </div>
-
-                <div className="p-2">
-
-                  <Link
-                    href="/aktif/profile"
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                  >
-
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                      <User size={16} />
-                    </span>
-
-                    Lihat Profil
-
-                  </Link>
-
-                </div>
-
-              </div>
-            </>
-          )}
-
-        </div>
+        </Link>
 
       </div>
 

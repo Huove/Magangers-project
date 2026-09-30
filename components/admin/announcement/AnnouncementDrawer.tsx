@@ -1,6 +1,14 @@
 "use client";
 
 import {
+  useState,
+} from "react";
+
+import type {
+  ReactNode,
+} from "react";
+
+import {
   X,
   CalendarDays,
   Users,
@@ -9,15 +17,27 @@ import {
   Download,
   Pencil,
   Send,
+  Clock3,
 } from "lucide-react";
 
-import { Announcement } from "@/app/admin/pengumuman/page";
+import type {
+  Announcement,
+} from "@/app/admin/pengumuman/page";
+
+import { supabase } from "@/lib/supabase";
+
+// =====================================================
+// PROPS
+// =====================================================
 
 interface Props {
   open: boolean;
+
   onClose: () => void;
 
-  announcement: Announcement | null;
+  announcement:
+    | Announcement
+    | null;
 
   onEdit: (
     announcement: Announcement
@@ -25,8 +45,14 @@ interface Props {
 
   onPublish: (
     announcement: Announcement
-  ) => void;
+  ) =>
+    | void
+    | Promise<void>;
 }
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 export default function AnnouncementDrawer({
   open,
@@ -35,43 +61,180 @@ export default function AnnouncementDrawer({
   onEdit,
   onPublish,
 }: Props) {
-  if (!open || !announcement) {
+  const [
+    downloading,
+    setDownloading,
+  ] = useState(false);
+
+  const [
+    publishing,
+    setPublishing,
+  ] = useState(false);
+
+  // ===================================================
+  // JANGAN RENDER JIKA TIDAK ADA DATA
+  // ===================================================
+
+  if (
+    !open ||
+    !announcement
+  ) {
     return null;
   }
 
-  function handleDownload() {
-    if (!announcement?.attachment) return;
+  // Setelah pengecekan di atas,
+  // variabel ini pasti Announcement,
+  // bukan Announcement | null.
+  const currentAnnouncement =
+    announcement;
 
-    const link =
-      document.createElement("a");
+  // ===================================================
+  // DOWNLOAD PRIVATE STORAGE
+  // ===================================================
 
-    link.href =
-      announcement.attachment.url;
+  async function handleDownload() {
+    const attachment =
+      currentAnnouncement.attachment;
 
-    link.download =
-      announcement.attachment.name;
+    if (
+      !attachment?.path
+    ) {
+      alert(
+        "Lampiran tidak ditemukan."
+      );
 
-    document.body.appendChild(link);
+      return;
+    }
 
-    link.click();
+    try {
+      setDownloading(
+        true
+      );
 
-    document.body.removeChild(link);
+      const {
+        data,
+        error,
+      } =
+        await supabase.storage
+          .from(
+            "pengumuman"
+          )
+          .download(
+            attachment.path
+          );
+
+      if (
+        error
+      ) {
+        throw error;
+      }
+
+      if (
+        !data
+      ) {
+        throw new Error(
+          "File tidak ditemukan."
+        );
+      }
+
+      const url =
+        URL.createObjectURL(
+          data
+        );
+
+      const link =
+        document.createElement(
+          "a"
+        );
+
+      link.href =
+        url;
+
+      link.download =
+        attachment.name;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+
+      URL.revokeObjectURL(
+        url
+      );
+    } catch (error) {
+      console.error(
+        "DOWNLOAD ERROR:",
+        error
+      );
+
+      alert(
+        "Gagal mengunduh lampiran."
+      );
+    } finally {
+      setDownloading(
+        false
+      );
+    }
   }
+
+  // ===================================================
+  // PUBLISH
+  // ===================================================
+
+  async function handlePublish() {
+    try {
+      setPublishing(
+        true
+      );
+
+      await onPublish(
+        currentAnnouncement
+      );
+    } catch (error) {
+      console.error(
+        "PUBLISH ERROR:",
+        error
+      );
+    } finally {
+      setPublishing(
+        false
+      );
+    }
+  }
+
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
     <>
-      {/* OVERLAY */}
+      {/* =================================================
+          OVERLAY
+      ================================================= */}
 
       <div
-        onClick={onClose}
+        onClick={
+          publishing
+            ? undefined
+            : onClose
+        }
         className="fixed inset-0 z-40 bg-black/30"
       />
 
-      {/* DRAWER */}
+      {/* =================================================
+          DRAWER
+      ================================================= */}
 
       <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
 
-        {/* HEADER */}
+        {/* ===============================================
+            HEADER
+        =============================================== */}
 
         <div className="flex items-center justify-between border-b px-6 py-5">
 
@@ -82,40 +245,58 @@ export default function AnnouncementDrawer({
             </h2>
 
             <p className="mt-1 text-gray-500">
-              Informasi lengkap pengumuman.
+              Informasi lengkap
+              pengumuman.
             </p>
 
           </div>
 
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 hover:bg-gray-100"
+            disabled={
+              publishing
+            }
+            onClick={
+              onClose
+            }
+            className="rounded-lg p-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <X size={22} />
+            <X
+              size={22}
+            />
           </button>
 
         </div>
 
-        {/* BODY */}
+        {/* ===============================================
+            BODY
+        =============================================== */}
 
         <div className="space-y-6 p-6">
 
-          {/* STATUS + TITLE */}
+          {/* =============================================
+              STATUS + TITLE
+          ============================================== */}
 
           <div>
 
             <StatusBadge
-              status={announcement.status}
+              status={
+                currentAnnouncement.status
+              }
             />
 
-            <h1 className="mt-4 text-3xl font-bold">
-              {announcement.judul}
+            <h1 className="mt-4 break-words text-3xl font-bold">
+              {
+                currentAnnouncement.judul
+              }
             </h1>
 
           </div>
 
-          {/* ISI */}
+          {/* =============================================
+              ISI
+          ============================================== */}
 
           <div className="rounded-xl border border-gray-200 p-5">
 
@@ -123,13 +304,17 @@ export default function AnnouncementDrawer({
               Isi Pengumuman
             </h3>
 
-            <p className="whitespace-pre-line leading-7 text-gray-600">
-              {announcement.isi}
+            <p className="whitespace-pre-line break-words leading-7 text-gray-600">
+              {
+                currentAnnouncement.isi
+              }
             </p>
 
           </div>
 
-          {/* INFORMASI */}
+          {/* =============================================
+              INFORMASI
+          ============================================== */}
 
           <div className="rounded-xl border border-gray-200">
 
@@ -141,43 +326,52 @@ export default function AnnouncementDrawer({
 
               <InfoItem
                 icon={
-                  <CalendarDays size={18} />
+                  <CalendarDays
+                    size={18}
+                  />
                 }
-                title="Tanggal"
+                title="Tanggal Pengumuman"
                 value={
-                  announcement.tanggal
+                  currentAnnouncement.tanggal
                 }
               />
 
               <InfoItem
                 icon={
-                  <Users size={18} />
+                  <Users
+                    size={18}
+                  />
                 }
                 title="Target"
                 value={
-                  announcement.target
+                  currentAnnouncement.target
                 }
               />
 
               <InfoItem
                 icon={
-                  <Bell size={18} />
+                  <Bell
+                    size={18}
+                  />
                 }
                 title="Status"
                 value={
-                  announcement.status
+                  currentAnnouncement.status
                 }
               />
 
               <InfoItem
                 icon={
-                  <FileText size={18} />
+                  <FileText
+                    size={18}
+                  />
                 }
                 title="Lampiran"
                 value={
-                  announcement.attachment
-                    ? announcement.attachment.name
-                    : "Belum ada lampiran"
+                  currentAnnouncement
+                    .attachment
+                    ?.name ||
+                  "Belum ada lampiran"
                 }
               />
 
@@ -185,18 +379,30 @@ export default function AnnouncementDrawer({
 
           </div>
 
-          {/* LAMPIRAN */}
+          {/* =============================================
+              LAMPIRAN
+          ============================================== */}
 
-          {announcement.attachment && (
+          {currentAnnouncement
+            .attachment && (
+
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
 
               <div className="flex items-center justify-between gap-4">
 
                 <div className="flex min-w-0 items-center gap-3">
 
+                  {/* ICON */}
+
                   <div className="rounded-lg bg-white p-3 text-blue-600">
-                    <FileText size={22} />
+
+                    <FileText
+                      size={22}
+                    />
+
                   </div>
+
+                  {/* FILE INFO */}
 
                   <div className="min-w-0">
 
@@ -205,65 +411,119 @@ export default function AnnouncementDrawer({
                     </p>
 
                     <p className="truncate text-sm text-blue-700">
-                      {announcement.attachment.name}
+                      {
+                        currentAnnouncement
+                          .attachment
+                          .name
+                      }
                     </p>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      {(
-                        announcement.attachment
-                          .size / 1024
-                      ).toFixed(1)}{" "}
-                      KB
+                      {formatFileSize(
+                        currentAnnouncement
+                          .attachment
+                          .size
+                      )}
                     </p>
 
                   </div>
 
                 </div>
 
+                {/* DOWNLOAD */}
+
                 <button
                   type="button"
-                  onClick={handleDownload}
-                  className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  disabled={
+                    downloading
+                  }
+                  onClick={
+                    handleDownload
+                  }
+                  className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Download size={16} />
-                  Download
+
+                  <Download
+                    size={16}
+                  />
+
+                  {downloading
+                    ? "Mengunduh..."
+                    : "Download"}
+
                 </button>
 
               </div>
 
             </div>
+
           )}
 
-          {/* RIWAYAT */}
+          {/* =============================================
+              RIWAYAT PUBLIKASI
+          ============================================== */}
 
           <div className="rounded-xl border border-gray-200 p-5">
 
-            <h3 className="mb-5 font-semibold">
-              Riwayat Publikasi
-            </h3>
+            <div className="mb-5 flex items-center gap-2">
+
+              <Clock3
+                size={18}
+                className="text-blue-600"
+              />
+
+              <h3 className="font-semibold">
+                Riwayat Publikasi
+              </h3>
+
+            </div>
 
             <div className="space-y-4">
+
+              {/* DIBUAT */}
 
               <TimelineItem
                 title="Pengumuman dibuat"
                 date={
-                  announcement.tanggal
+                  formatDateTime(
+                    currentAnnouncement.createdAt
+                  )
                 }
               />
 
-              {announcement.status ===
-                "Dipublikasikan" ? (
+              {/* DIPUBLIKASIKAN */}
+
+              {currentAnnouncement
+                .publishedAt ? (
+
                 <TimelineItem
                   title="Pengumuman dipublikasikan"
                   date={
-                    announcement.tanggal
+                    formatDateTime(
+                      currentAnnouncement
+                        .publishedAt
+                    )
                   }
                 />
+
               ) : (
+
                 <TimelineItem
-                  title="Menunggu publikasi"
-                  date="-"
+                  title={
+                    currentAnnouncement.status ===
+                    "Terjadwal"
+                      ? "Menunggu jadwal publikasi"
+                      : "Belum dipublikasikan"
+                  }
+                  date={
+                    currentAnnouncement.status ===
+                    "Terjadwal"
+                      ? currentAnnouncement.tanggal
+                      : "-"
+                  }
+                  muted
                 />
+
               )}
 
             </div>
@@ -272,7 +532,9 @@ export default function AnnouncementDrawer({
 
         </div>
 
-        {/* FOOTER */}
+        {/* ===============================================
+            FOOTER
+        =============================================== */}
 
         <div className="sticky bottom-0 flex gap-3 border-t bg-white p-6">
 
@@ -280,31 +542,49 @@ export default function AnnouncementDrawer({
 
           <button
             type="button"
-            onClick={() =>
-              onEdit(announcement)
+            disabled={
+              publishing
             }
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-yellow-500 py-3 font-medium text-yellow-600 hover:bg-yellow-50"
+            onClick={() =>
+              onEdit(
+                currentAnnouncement
+              )
+            }
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-yellow-500 py-3 font-medium text-yellow-600 hover:bg-yellow-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Pencil size={18} />
+            <Pencil
+              size={18}
+            />
+
             Edit
           </button>
 
           {/* PUBLISH */}
 
-          {announcement.status !==
+          {currentAnnouncement.status !==
             "Dipublikasikan" && (
+
             <button
               type="button"
-              onClick={() => {
-                onPublish(
-                  announcement
-                );
-              }}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700"
+              disabled={
+                publishing
+              }
+              onClick={
+                handlePublish
+              }
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Send size={18} />
-              Publikasikan
+
+              <Send
+                size={18}
+              />
+
+              {publishing
+                ? "Mempublikasikan..."
+                : "Publikasikan"}
+
             </button>
+
           )}
 
         </div>
@@ -314,18 +594,16 @@ export default function AnnouncementDrawer({
   );
 }
 
-/*
- * ============================
- * INFO ITEM
- * ============================
- */
+// =====================================================
+// INFO ITEM
+// =====================================================
 
 function InfoItem({
   icon,
   title,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   value: string;
 }) {
@@ -336,13 +614,13 @@ function InfoItem({
         {icon}
       </div>
 
-      <div>
+      <div className="min-w-0">
 
         <p className="text-sm text-gray-500">
           {title}
         </p>
 
-        <p className="font-medium">
+        <p className="break-words font-medium">
           {value}
         </p>
 
@@ -352,27 +630,39 @@ function InfoItem({
   );
 }
 
-/*
- * ============================
- * TIMELINE
- * ============================
- */
+// =====================================================
+// TIMELINE ITEM
+// =====================================================
 
 function TimelineItem({
   title,
   date,
+  muted = false,
 }: {
   title: string;
   date: string;
+  muted?: boolean;
 }) {
   return (
     <div className="flex gap-4">
 
-      <div className="mt-2 h-3 w-3 shrink-0 rounded-full bg-blue-600" />
+      <div
+        className={`mt-2 h-3 w-3 shrink-0 rounded-full ${
+          muted
+            ? "bg-gray-300"
+            : "bg-blue-600"
+        }`}
+      />
 
       <div>
 
-        <p className="font-medium">
+        <p
+          className={`font-medium ${
+            muted
+              ? "text-gray-500"
+              : "text-gray-800"
+          }`}
+        >
           {title}
         </p>
 
@@ -386,11 +676,9 @@ function TimelineItem({
   );
 }
 
-/*
- * ============================
- * STATUS BADGE
- * ============================
- */
+// =====================================================
+// STATUS BADGE
+// =====================================================
 
 function StatusBadge({
   status,
@@ -400,17 +688,26 @@ function StatusBadge({
   let color =
     "bg-gray-100 text-gray-700";
 
-  if (status === "Dipublikasikan") {
+  if (
+    status ===
+    "Dipublikasikan"
+  ) {
     color =
       "bg-green-100 text-green-700";
   }
 
-  if (status === "Draft") {
+  if (
+    status ===
+    "Draft"
+  ) {
     color =
       "bg-yellow-100 text-yellow-700";
   }
 
-  if (status === "Terjadwal") {
+  if (
+    status ===
+    "Terjadwal"
+  ) {
     color =
       "bg-blue-100 text-blue-700";
   }
@@ -422,4 +719,72 @@ function StatusBadge({
       {status}
     </span>
   );
+}
+
+// =====================================================
+// FORMAT DATETIME
+// =====================================================
+
+function formatDateTime(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleString(
+    "id-ID",
+    {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+}
+
+// =====================================================
+// FORMAT FILE SIZE
+// =====================================================
+
+function formatFileSize(
+  bytes: number
+) {
+  if (
+    !bytes
+  ) {
+    return "0 KB";
+  }
+
+  if (
+    bytes <
+    1024 * 1024
+  ) {
+    return `${(
+      bytes / 1024
+    ).toFixed(1)} KB`;
+  }
+
+  return `${(
+    bytes /
+    1024 /
+    1024
+  ).toFixed(1)} MB`;
 }
