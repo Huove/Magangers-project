@@ -29,15 +29,19 @@ export async function POST(
       );
     }
 
-    // Ambil data pengajuan
-    const { data: pengajuan, error: pengajuanError } =
-      await supabase
-        .from("pengajuan_magang")
-        .select("id, peserta_id, status")
-        .eq("id", id)
-        .single();
+    // ==========================================
+    // AMBIL DATA PENGAJUAN
+    // ==========================================
+    const {
+      data: pengajuan,
+      error: pengajuanError,
+    } = await supabase
+      .from("pengajuan_magang")
+      .select("id, peserta_id, status")
+      .eq("id", id)
+      .single();
 
-    if (pengajuanError) {
+    if (pengajuanError || !pengajuan) {
       return NextResponse.json(
         {
           success: false,
@@ -47,8 +51,24 @@ export async function POST(
       );
     }
 
-    // Pastikan status pengajuan masih diajukan
-    if (pengajuan.status !== "diajukan") {
+    // ==========================================
+    // CEK STATUS PENGAJUAN
+    // ==========================================
+    //
+    // Status yang masih diperbolehkan masuk
+    // ke tahap wawancara:
+    //
+    // diajukan
+    // diproses
+    // diterima
+    //
+    const allowedStatuses = [
+      "diajukan",
+      "diproses",
+      "diterima",
+    ];
+
+    if (!allowedStatuses.includes(pengajuan.status)) {
       return NextResponse.json(
         {
           success: false,
@@ -58,13 +78,24 @@ export async function POST(
       );
     }
 
-    // Ubah status pengajuan menjadi diproses
-    const { data, error } = await supabase
+    // ==========================================
+    // AMBIL USER ADMIN YANG MEMPROSES
+    // ==========================================
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // ==========================================
+    // UBAH STATUS PENGAJUAN
+    // ==========================================
+    const {
+      data,
+      error,
+    } = await supabase
       .from("pengajuan_magang")
       .update({
         status: "diproses",
-        diproses_oleh:
-          (await supabase.auth.getUser()).data.user?.id ?? null,
+        diproses_oleh: user?.id ?? null,
         diproses_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -93,7 +124,9 @@ export async function POST(
     // ==========================================
     // UBAH STATUS PESERTA MENJADI WAWANCARA
     // ==========================================
-    const { error: pesertaError } = await supabase
+    const {
+      error: pesertaError,
+    } = await supabase
       .from("peserta")
       .update({
         status: "wawancara",
@@ -117,18 +150,26 @@ export async function POST(
       );
     }
 
+    // ==========================================
+    // BERHASIL
+    // ==========================================
     return NextResponse.json({
       success: true,
-      message: "Pelamar berhasil dipindahkan ke tahap wawancara.",
+      message:
+        "Pelamar berhasil dipindahkan ke tahap wawancara.",
       data,
     });
   } catch (error) {
-    console.error("Wawancara API ERROR:", error);
+    console.error(
+      "Wawancara API ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
         success: false,
-        message: "Terjadi kesalahan pada server.",
+        message:
+          "Terjadi kesalahan pada server.",
       },
       { status: 500 }
     );

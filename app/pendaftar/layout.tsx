@@ -1,11 +1,48 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import Sidebar from "@/components/pendaftar/Sidebar";
 import Topbar from "@/components/pendaftar/Topbar";
 import TopLoadingBar from "@/components/pendaftar/TopLoadingBar";
 import PageTransition from "@/components/pendaftar/PageTransition";
-import { UserProvider } from "@/components/pendaftar/UserContext";
-import RevisiPopup from "@/components/pendaftar/RevisiPopup" // ✅ tambah ini
+import {
+  UserProvider,
+  useUser,
+} from "@/components/pendaftar/UserContext";
+import RevisiPopup from "@/components/pendaftar/RevisiPopup";
+
+function PendaftarRedirect({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+
+  const {
+    status,
+    refreshFromServer,
+  } = useUser();
+
+  useEffect(() => {
+    refreshFromServer();
+  }, []);
+
+  useEffect(() => {
+    if (status === "aktif") {
+      router.replace("/aktif/dashboard");
+    }
+  }, [status, router]);
+
+  // Jangan tampilkan halaman pendaftar
+  // jika peserta sudah aktif.
+  if (status === "aktif") {
+    return null;
+  }
+
+  return <>{children}</>;
+}
 
 export default function PendaftarLayout({
   children,
@@ -14,21 +51,25 @@ export default function PendaftarLayout({
 }) {
   return (
     <UserProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
-        <Sidebar />
+      <PendaftarRedirect>
+        <div className="flex h-screen overflow-hidden bg-gray-50">
+          <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopLoadingBar />
-          <Topbar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopLoadingBar />
+            <Topbar />
 
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <PageTransition>{children}</PageTransition>
-          </main>
+            <main className="min-h-0 flex-1 overflow-y-auto">
+              <PageTransition>
+                {children}
+              </PageTransition>
+            </main>
+          </div>
         </div>
-      </div>
 
-      {/* ✅ Popup revisi global, tapi hanya muncul jika latestPengajuanStatus === "revisi" */}
-      <RevisiPopup />
+        {/* Popup revisi global */}
+        <RevisiPopup />
+      </PendaftarRedirect>
     </UserProvider>
   );
 }

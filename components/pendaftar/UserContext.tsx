@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
 import { supabase } from "@/lib/supabase";
 
 export type StatusType =
@@ -39,101 +45,345 @@ interface JadwalWawancara {
 
 interface UserContextType {
   photo: string | null;
-  setPhoto: (value: string | null) => void;
+
+  setPhoto: (
+    value: string | null
+  ) => void;
 
   status: StatusType;
-  setStatus: (value: StatusType) => void;
 
-  latestPengajuanStatus: string | null;
-  latestPengajuanId: string | null;
-  revisiNote: string | null;
-  jadwalWawancara: JadwalWawancara | null;
+  setStatus: (
+    value: StatusType
+  ) => void;
 
-  userData: UserDataType | null;
-  setUserData: (value: UserDataType | null) => void;
+  latestPengajuanStatus:
+    string | null;
+
+  latestPengajuanId:
+    string | null;
+
+  revisiNote:
+    string | null;
+
+  jadwalWawancara:
+    JadwalWawancara | null;
+
+  userData:
+    UserDataType | null;
+
+  setUserData: (
+    value: UserDataType | null
+  ) => void;
 
   documents: DocumentType;
-  setDocuments: (value: DocumentType) => void;
 
-  refreshFromServer: () => Promise<void>;
+  setDocuments: (
+    value: DocumentType
+  ) => void;
+
+  refreshFromServer:
+    () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext =
+  createContext<
+    UserContextType | undefined
+  >(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [status, setStatus] = useState<StatusType>("tidak_aktif");
+export function UserProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [
+    photo,
+    setPhoto,
+  ] = useState<string | null>(
+    null
+  );
 
-  const [latestPengajuanStatus, setLatestPengajuanStatus] = useState<string | null>(null);
-  const [latestPengajuanId, setLatestPengajuanId] = useState<string | null>(null);
-  const [revisiNote, setRevisiNote] = useState<string | null>(null);
-  const [jadwalWawancara, setJadwalWawancara] = useState<JadwalWawancara | null>(null);
+  const [
+    status,
+    setStatus,
+  ] = useState<StatusType>(
+    "tidak_aktif"
+  );
 
-  const [userData, setUserData] = useState<UserDataType | null>(null);
-  const [documents, setDocuments] = useState<DocumentType>({});
+  const [
+    latestPengajuanStatus,
+    setLatestPengajuanStatus,
+  ] = useState<string | null>(
+    null
+  );
 
+  const [
+    latestPengajuanId,
+    setLatestPengajuanId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    revisiNote,
+    setRevisiNote,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    jadwalWawancara,
+    setJadwalWawancara,
+  ] =
+    useState<JadwalWawancara | null>(
+      null
+    );
+
+  const [
+    userData,
+    setUserData,
+  ] = useState<UserDataType | null>(
+    null
+  );
+
+  const [
+    documents,
+    setDocuments,
+  ] = useState<DocumentType>(
+    {}
+  );
+
+  // ==========================================
+  // LOCAL STORAGE
+  // ==========================================
   useEffect(() => {
-    const savedPhoto = localStorage.getItem("user-photo");
-    const savedStatus = localStorage.getItem("user-status");
-    const savedUser = localStorage.getItem("user-data");
-    const savedDocs = localStorage.getItem("user-documents");
+    const savedPhoto =
+      localStorage.getItem(
+        "user-photo"
+      );
 
-    if (savedPhoto) setPhoto(savedPhoto);
-    if (savedStatus) setStatus(savedStatus as StatusType);
-    if (savedUser) setUserData(JSON.parse(savedUser));
-    if (savedDocs) setDocuments(JSON.parse(savedDocs));
+    const savedStatus =
+      localStorage.getItem(
+        "user-status"
+      );
+
+    const savedUser =
+      localStorage.getItem(
+        "user-data"
+      );
+
+    const savedDocs =
+      localStorage.getItem(
+        "user-documents"
+      );
+
+    if (savedPhoto) {
+      setPhoto(savedPhoto);
+    }
+
+    if (savedStatus) {
+      setStatus(
+        savedStatus as StatusType
+      );
+    }
+
+    if (savedUser) {
+      try {
+        setUserData(
+          JSON.parse(savedUser)
+        );
+      } catch {
+        localStorage.removeItem(
+          "user-data"
+        );
+      }
+    }
+
+    if (savedDocs) {
+      try {
+        setDocuments(
+          JSON.parse(savedDocs)
+        );
+      } catch {
+        localStorage.removeItem(
+          "user-documents"
+        );
+      }
+    }
   }, []);
 
+  // ==========================================
+  // SIMPAN LOCAL STORAGE
+  // ==========================================
   useEffect(() => {
-    if (photo) localStorage.setItem("user-photo", photo);
-    localStorage.setItem("user-status", status);
-    if (userData) localStorage.setItem("user-data", JSON.stringify(userData));
-    localStorage.setItem("user-documents", JSON.stringify(documents));
-  }, [photo, status, userData, documents]);
+    if (photo) {
+      localStorage.setItem(
+        "user-photo",
+        photo
+      );
+    }
 
+    localStorage.setItem(
+      "user-status",
+      status
+    );
+
+    if (userData) {
+      localStorage.setItem(
+        "user-data",
+        JSON.stringify(userData)
+      );
+    }
+
+    localStorage.setItem(
+      "user-documents",
+      JSON.stringify(documents)
+    );
+  }, [
+    photo,
+    status,
+    userData,
+    documents,
+  ]);
+
+  // ==========================================
+  // REFRESH DARI SERVER
+  // ==========================================
   async function refreshFromServer() {
-    const { data: s } = await supabase.auth.getSession();
-    const token = s.session?.access_token;
+    const {
+      data: sessionData,
+    } =
+      await supabase.auth.getSession();
+
+    const token =
+      sessionData.session
+        ?.access_token;
 
     if (!token) {
-      setStatus("tidak_aktif");
-      setLatestPengajuanStatus(null);
-      setLatestPengajuanId(null);
-      setRevisiNote(null);
-      setJadwalWawancara(null);
+      setStatus(
+        "tidak_aktif"
+      );
+
+      setLatestPengajuanStatus(
+        null
+      );
+
+      setLatestPengajuanId(
+        null
+      );
+
+      setRevisiNote(
+        null
+      );
+
+      setJadwalWawancara(
+        null
+      );
+
       return;
     }
 
-    const res = await fetch("/api/pendaftar/status", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-
-    const text = await res.text();
-    let json: any = null;
+    // ==========================================
+    // UTM ATTACHMENT
+    // ==========================================
+    // Tidak menggagalkan proses login/status
+    // jika endpoint UTM mengalami error.
+    // ==========================================
     try {
-      json = text ? JSON.parse(text) : null;
-    } catch {
-      json = { message: text };
+      await fetch(
+        "/api/utm/attach",
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "UTM ATTACH SKIPPED:",
+        error
+      );
     }
 
-    if (!res.ok) return;
+    // ==========================================
+    // AMBIL STATUS PESERTA
+    // ==========================================
+    const res =
+      await fetch(
+        "/api/pendaftar/status",
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+          cache: "no-store",
+        }
+      );
 
-    setStatus((json?.status ?? "tidak_aktif") as StatusType);
-    setLatestPengajuanStatus(json?.latest_pengajuan_status ?? null);
-    setLatestPengajuanId(json?.latest_pengajuan_id ?? null);
-    setRevisiNote(json?.revisi_note ?? null);
-    setJadwalWawancara(json?.jadwal_wawancara ?? null);
+    const text =
+      await res.text();
+
+    let json: any = null;
+
+    try {
+      json = text
+        ? JSON.parse(text)
+        : null;
+    } catch {
+      json = {
+        message: text,
+      };
+    }
+
+    if (!res.ok) {
+      return;
+    }
+
+    setStatus(
+      (json?.status ??
+        "tidak_aktif") as StatusType
+    );
+
+    setLatestPengajuanStatus(
+      json?.latest_pengajuan_status ??
+        null
+    );
+
+    setLatestPengajuanId(
+      json?.latest_pengajuan_id ??
+        null
+    );
+
+    setRevisiNote(
+      json?.revisi_note ??
+        null
+    );
+
+    setJadwalWawancara(
+      json?.jadwal_wawancara ??
+        null
+    );
   }
 
+  // ==========================================
+  // AUTH STATE
+  // ==========================================
   useEffect(() => {
     refreshFromServer();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      refreshFromServer();
-    });
+    const {
+      data: sub,
+    } =
+      supabase.auth.onAuthStateChange(
+        () => {
+          refreshFromServer();
+        }
+      );
 
-    return () => sub.subscription.unsubscribe();
+    return () =>
+      sub.subscription.unsubscribe();
   }, []);
 
   return (
@@ -141,16 +391,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       value={{
         photo,
         setPhoto,
+
         status,
         setStatus,
+
         latestPengajuanStatus,
         latestPengajuanId,
+
         revisiNote,
         jadwalWawancara,
+
         userData,
         setUserData,
+
         documents,
         setDocuments,
+
         refreshFromServer,
       }}
     >
@@ -160,7 +416,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useUser() {
-  const context = useContext(UserContext);
-  if (!context) throw new Error("useUser must be inside provider");
+  const context =
+    useContext(UserContext);
+
+  if (!context) {
+    throw new Error(
+      "useUser must be inside provider"
+    );
+  }
+
   return context;
 }

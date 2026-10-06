@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import UtmTracker from "@/components/marketing/UtmTracker";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "Magang-ers | Platform Magang Terpercaya",
@@ -18,7 +22,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className={cn("font-sans", geist.variable)}>
-      <body className="bg-white">{children}</body>
+      <body className="bg-white">
+        <UtmTracker />
+        {children}
+      </body>
     </html>
   );
 }
