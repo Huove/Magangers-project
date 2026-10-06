@@ -296,13 +296,13 @@ export default function ProfilePage() {
           } = await supabase
             .from("penempatan")
             .select(`
-              id,
-              pembimbing_id,
-              divisi,
-              posisi,
-              tanggal_mulai,
-              tanggal_selesai
-            `)
+    id,
+    pembimbing_id,
+    divisi,
+    posisi,
+    tanggal_mulai,
+    tanggal_selesai
+  `)
             .eq(
               "peserta_id",
               pesertaData.id
@@ -331,70 +331,39 @@ export default function ProfilePage() {
               penempatanData.tanggal_selesai ||
               tanggalSelesai;
 
-            // =================================
+            // ===================================
             // PEMBIMBING
-            // =================================
+            // ===================================
 
-            if (
-              penempatanData.pembimbing_id
-            ) {
+            if (penempatanData.pembimbing_id) {
               const {
-                data: pembimbingData,
-                error: pembimbingError,
-              } = await supabase
-                .from("pembimbing")
-                .select("user_id")
-                .eq(
-                  "id",
-                  penempatanData.pembimbing_id
-                )
-                .maybeSingle();
+                data: pembimbingProfile,
+                error: pembimbingProfileError,
+              } = await supabase.rpc(
+                "get_pembimbing_peserta",
+                {
+                  p_pembimbing_id:
+                    penempatanData.pembimbing_id,
+                }
+              );
 
-              if (pembimbingError) {
+              if (pembimbingProfileError) {
                 console.error(
-                  "Error pembimbing:",
-                  pembimbingError
-                );
-              }
-
-              if (
-                pembimbingData?.user_id
-              ) {
-                const {
-                  data: pembimbingProfile,
-                  error:
-                    pembimbingProfileError,
-                } = await supabase
-                  .from("profiles")
-                  .select(
-                    "nama_lengkap"
-                  )
-                  .eq(
-                    "id",
-                    pembimbingData.user_id
-                  )
-                  .maybeSingle();
-
-                if (
+                  "Error mengambil pembimbing:",
                   pembimbingProfileError
-                ) {
-                  console.error(
-                    "Error profile pembimbing:",
-                    pembimbingProfileError
-                  );
-                }
-
-                if (
-                  pembimbingProfile
-                    ?.nama_lengkap
-                ) {
-                  pembimbing =
-                    pembimbingProfile
-                      .nama_lengkap;
-                }
+                );
+              } else {
+                pembimbing =
+                  pembimbingProfile?.[0]?.nama_lengkap ||
+                  "-";
               }
             }
           }
+
+          // ===================================
+          // TUTUP IF PESERTA DATA
+          // ===================================
+
         }
 
         // =====================================
@@ -403,8 +372,7 @@ export default function ProfilePage() {
 
         setProfile({
           namaLengkap:
-            profileData.nama_lengkap ||
-            "-",
+            profileData.nama_lengkap || "-",
 
           email:
             profileData.email ||
@@ -412,20 +380,16 @@ export default function ProfilePage() {
             "-",
 
           nomorHp:
-            profileData.nomor_hp ||
-            "-",
+            profileData.nomor_hp || "-",
 
           fotoUrl:
-            profileData.foto_url ||
-            null,
+            profileData.foto_url || null,
 
           nomorPeserta:
-            pesertaData?.nomor_peserta ||
-            "-",
+            pesertaData?.nomor_peserta || "-",
 
           status:
-            pesertaData?.status ||
-            "-",
+            pesertaData?.status || "-",
 
           sekolah,
           jurusan,
@@ -439,6 +403,7 @@ export default function ProfilePage() {
         });
 
         setAvatarError(false);
+
       } catch (err) {
         console.error(
           "Gagal mengambil profile:",
@@ -448,6 +413,7 @@ export default function ProfilePage() {
         setError(
           "Gagal mengambil data profile."
         );
+
       } finally {
         setLoading(false);
       }
@@ -725,9 +691,9 @@ export default function ProfilePage() {
 
             if (
               parsedUrl.protocol !==
-                "http:" &&
+              "http:" &&
               parsedUrl.protocol !==
-                "https:"
+              "https:"
             ) {
               alert(
                 "URL harus menggunakan http atau https."
@@ -1120,7 +1086,7 @@ export default function ProfilePage() {
             <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl border border-neutral-200 bg-neutral-100">
 
               {profile.fotoUrl &&
-              !avatarError ? (
+                !avatarError ? (
 
                 <img
                   key={
@@ -2188,9 +2154,9 @@ async function compressImage(
 
           if (
             width >
-              maxDimension ||
+            maxDimension ||
             height >
-              maxDimension
+            maxDimension
           ) {
             if (
               width >
@@ -2200,7 +2166,7 @@ async function compressImage(
                 Math.round(
                   (height *
                     maxDimension) /
-                    width
+                  width
                 );
 
               width =
@@ -2210,7 +2176,7 @@ async function compressImage(
                 Math.round(
                   (width *
                     maxDimension) /
-                    height
+                  height
                 );
 
               height =

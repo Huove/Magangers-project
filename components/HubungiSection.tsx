@@ -11,10 +11,7 @@ export default function HubungiSection() {
         <div className="mb-6 h-1 w-14 rounded-full bg-brand-green" />
 
         <p className="text-sm leading-relaxed text-slate-600">
-          &ldquo;Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-          do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-          enim ad minim veniam, quis nostrud exercitation ullamco laboris
-          nisi ut aliquip ex ea commodo consequat.&rdquo;
+          &ldquo;Punya pertanyaan atau mengalami kendala selama program magang? Jangan ragu untuk menghubungi kami. Tim Magang-ers siap membantu memberikan informasi dan solusi agar proses magang kamu berjalan lancar dan nyaman.&rdquo;
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Applicant } from "@/types/applicant";
 import { ReactNode, useState } from "react";
 import {
   X,
@@ -8,19 +9,6 @@ import {
   Clock3,
   MessageSquare,
 } from "lucide-react";
-
-interface Applicant {
-  id?: number;
-  nama: string;
-  email: string;
-  sekolah: string;
-  jurusan: string;
-  posisi: string;
-  alamat: string;
-  nohp: string;
-  tanggal?: string;
-  status?: string;
-}
 
 interface Props {
   open: boolean;
@@ -31,6 +19,14 @@ interface Props {
   onAccept: () => void;
   onReject: () => void;
   onRevision: () => void;
+
+  docs: any[];
+  docsLoading: boolean;
+  docsError: string | null;
+
+  history: any[];
+  historyLoading: boolean;
+  historyError: string | null;
 }
 
 export default function ApplicantDrawer({
@@ -40,6 +36,14 @@ export default function ApplicantDrawer({
   onAccept,
   onReject,
   onRevision,
+
+  docs,
+  docsLoading,
+  docsError,
+
+  history,
+  historyLoading,
+  historyError,
 }: Props) {
   const [tab, setTab] = useState("data");
 
@@ -181,7 +185,7 @@ export default function ApplicantDrawer({
               onClick={onAccept}
               className="rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700"
             >
-              Terima
+              Wawancara
             </button>
 
           </div>

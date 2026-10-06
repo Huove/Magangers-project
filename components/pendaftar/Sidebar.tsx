@@ -90,14 +90,20 @@ export default function Sidebar() {
           <Menu size={24} />
         </button>
 
+        {/* Logo */}
+        <img
+          src="/logo.png"
+          alt="Magang-ers Logo"
+          className="h-9 w-9 shrink-0 rounded-lg object-contain"
+        />
+
+        {/* Nama */}
         {isOpen && (
-          <span className="text-[18px] font-bold whitespace-nowrap">
-            <span className="text-[#840000]">Datasoft</span>{" "}
-            <span>Solution</span>
+          <span className="whitespace-nowrap text-[20px] font-bold text-black gap-4">
+            Magang-ers
           </span>
         )}
       </div>
-
       {/* MENU */}
       <nav className="flex flex-1 flex-col gap-2 px-3">
         {menuItems.map(({ key, label, icon: Icon, path }) => {

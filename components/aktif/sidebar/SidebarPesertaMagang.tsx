@@ -88,7 +88,9 @@ export default function Sidebar({
   };
 
   const handleLogout = () => {
-    const confirmed = window.confirm("Yakin ingin logout?");
+    const confirmed = window.confirm(
+      "Yakin ingin logout?"
+    );
 
     if (confirmed) {
       router.push("/");
@@ -107,23 +109,38 @@ export default function Sidebar({
     >
       {/* ================= HEADER ================= */}
 
-      <div className="flex items-center gap-3 px-5 py-5">
+      <div
+        className={`flex items-center px-5 py-5 ${
+          isOpen ? "gap-3" : "justify-center"
+        }`}
+      >
+
+                {/* Tombol Toggle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? "Tutup sidebar" : "Buka sidebar"}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-700 transition hover:bg-neutral-100"
+          aria-label={
+            isOpen
+              ? "Tutup sidebar"
+              : "Buka sidebar"
+          }
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-700 transition hover:bg-neutral-100 ${
+            isOpen ? "ml-auto" : ""
+          }`}
         >
           <Menu size={23} />
         </button>
 
+        {/* Logo */}
+        <img
+          src="/logo.png"
+          alt="Magang-ers Logo"
+          className="h-9 w-9 shrink-0 rounded-lg object-contain"
+        />
+
+        {/* Nama */}
         {isOpen && (
-          <span className="whitespace-nowrap text-[17px] font-bold">
-            <span className="text-[20px] text-[#840000]">
-              Datasoft
-            </span>{" "}
-            <span className="text-[20px] text-black">
-              Solution
-            </span>
+          <span className="whitespace-nowrap text-[20px] font-bold text-black gap-4">
+            Magang-ers
           </span>
         )}
       </div>
@@ -144,8 +161,14 @@ export default function Sidebar({
             return (
               <button
                 key={key}
-                onClick={() => handleClick(key, route)}
-                title={!isOpen ? label : undefined}
+                onClick={() =>
+                  handleClick(key, route)
+                }
+                title={
+                  !isOpen
+                    ? label
+                    : undefined
+                }
                 className={`
                   flex items-center justify-between
                   rounded-xl px-3.5 py-3
@@ -190,7 +213,11 @@ export default function Sidebar({
       <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-4">
         <button
           onClick={handleLogout}
-          title={!isOpen ? "Logout" : undefined}
+          title={
+            !isOpen
+              ? "Logout"
+              : undefined
+          }
           className={`
             flex w-full items-center gap-3
             rounded-xl px-3 py-2.5

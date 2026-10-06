@@ -245,7 +245,7 @@ export default function PelamarPage() {
     setHistoryLoading(false);
   }
 
-  async function updateStatus(newStatus: "Diterima" | "Ditolak" | "Revisi") {
+  async function updateStatus(newStatus: "Wawancara" | "Ditolak" | "Revisi") {
     if (!selectedApplicant) return;
 
     const token = await getToken();
@@ -255,14 +255,14 @@ export default function PelamarPage() {
     }
 
     // ✅ semua action harus pakai pengajuan terbaru
-    const pengajuanId = selectedApplicant.pengajuan;
+    const pengajuanId = selectedApplicant.pengajuan_id;
     if (!pengajuanId) {
       alert("Pengajuan terbaru tidak ditemukan untuk peserta ini.");
       return;
     }
 
     try {
-      if (newStatus === "Diterima") {
+      if (newStatus === "Wawancara") {
         const res = await fetch(`/api/admin/pengajuan/${pengajuanId}/approve`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -375,7 +375,7 @@ export default function PelamarPage() {
         open={drawerOpen}
         onClose={closeDrawer}
         applicant={selectedApplicant}
-        onAccept={() => updateStatus("Diterima")}
+        onAccept={() => updateStatus("Wawancara")}
         onReject={() => updateStatus("Ditolak")}
         onRevision={() => updateStatus("Revisi")}
         docs={docs}

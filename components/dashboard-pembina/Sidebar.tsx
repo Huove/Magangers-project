@@ -18,9 +18,9 @@ const MENU_ITEMS = [
   { label: "Peserta Bimbingan", icon: Users, href: "/dashboard-pembina/peserta" },
   { label: "Kelola Tugas", icon: ClipboardList, href: "/dashboard-pembina/tugas" },
   { label: "Pemeriksaan Jurnal", icon: BookCheck, href: "/dashboard-pembina/jurnal" },
-  { label: "Persetujuan Izin", icon: FileCheck2, href: "/dashboard-pembina/izin" }, 
+  { label: "Persetujuan Izin", icon: FileCheck2, href: "/dashboard-pembina/izin" },
   { label: "Penilaian Peserta", icon: BarChart3, href: "/dashboard-pembina/penilaian" },
-  { label: "Jadwal Evaluasi" ,icon: CalendarClock, href: "/dashboard-pembina/jadwal-evaluasi" },
+  { label: "Jadwal Evaluasi", icon: CalendarClock, href: "/dashboard-pembina/jadwal-evaluasi" },
 ];
 
 export default function PembinaSidebar() {
@@ -29,9 +29,12 @@ export default function PembinaSidebar() {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-100 bg-white px-5 py-6">
       <Link href="/" className="mb-8 flex items-center gap-2 px-1">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-blue-600 via-orange-500 to-blue-700">
-          <span className="h-3.5 w-3.5 rounded-sm bg-white/90" />
-        </span>
+        <img
+          src="/logo.png"
+          alt="Magang-ers Logo"
+          className="h-8 w-8 rounded-lg object-cover"
+        />
+
         <span className="text-lg font-extrabold text-slate-900">
           Magang-ers
         </span>
@@ -39,8 +42,6 @@ export default function PembinaSidebar() {
 
       <nav className="flex flex-1 flex-col gap-1">
         {MENU_ITEMS.map(({ label, icon: Icon, href }) => {
-          // "Dashboard" harus cocok persis, menu lain cocok kalau path-nya
-          // dimulai dengan href-nya (supaya sub-halaman ikut ke-highlight).
           const isActive =
             href === "/dashboard-pembina"
               ? pathname === href
@@ -72,4 +73,4 @@ export default function PembinaSidebar() {
       </Link>
     </aside>
   );
-}
+} 

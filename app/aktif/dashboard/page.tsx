@@ -25,10 +25,6 @@ import {
 
 import { supabase } from "@/lib/supabase";
 
-// =========================================
-// TYPES
-// =========================================
-
 type ProfilePeserta = {
   nama: string;
   fotoUrl: string | null;
@@ -518,70 +514,30 @@ export default function DashboardPesertaPage() {
         // PEMBIMBING
         // =====================================
 
-        let namaPembimbing =
-          "-";
+        let namaPembimbing = "-";
 
         const pembimbingId =
-          penempatanResult
-            .data
-            ?.pembimbing_id;
+          penempatanResult.data?.pembimbing_id;
 
         if (pembimbingId) {
           const {
-            data:
-            pembimbingData,
-            error:
-            pembimbingError,
-          } = await supabase
-            .from("pembimbing")
-            .select("user_id")
-            .eq(
-              "id",
-              pembimbingId
-            )
-            .maybeSingle();
-
-          if (
-            pembimbingError
-          ) {
-            console.error(
-              "PEMBIMBING ERROR:",
-              pembimbingError
-            );
-          }
-
-          if (
-            pembimbingData?.user_id
-          ) {
-            const {
-              data:
-              profilePembimbing,
-              error:
-              profilePembimbingError,
-            } = await supabase
-              .from("profiles")
-              .select(
-                "nama_lengkap"
-              )
-              .eq(
-                "id",
-                pembimbingData
-                  .user_id
-              )
-              .maybeSingle();
-
-            if (
-              profilePembimbingError
-            ) {
-              console.error(
-                "PROFILE PEMBIMBING ERROR:",
-                profilePembimbingError
-              );
+            data: pembimbingProfile,
+            error: pembimbingProfileError,
+          } = await supabase.rpc(
+            "get_pembimbing_peserta",
+            {
+              p_pembimbing_id: pembimbingId,
             }
+          );
 
+          if (pembimbingProfileError) {
+            console.error(
+              "PEMBIMBING PROFILE ERROR:",
+              pembimbingProfileError
+            );
+          } else {
             namaPembimbing =
-              profilePembimbing
-                ?.nama_lengkap ||
+              pembimbingProfile?.[0]?.nama_lengkap ||
               "-";
           }
         }
