@@ -89,6 +89,138 @@ export default function PelamarPage() {
     }
   }
 
+  function getFileName(doc: AdminDoc) {
+    const fileName = doc.path?.split("/").pop();
+
+    if (fileName) {
+      try {
+        return decodeURIComponent(fileName);
+      } catch {
+        return fileName;
+      }
+    }
+
+    return `dokumen-${doc.jenis}`;
+  }
+
+  async function getDocumentUrl(doc: AdminDoc) {
+    // Kalau API sudah memberikan URL, langsung gunakan
+    if (doc.url) {
+      return doc.url;
+    }
+
+    // Kalau URL kosong, minta signed URL dari API
+    const token = await getToken();
+
+    if (!token) {
+      throw new Error("Session admin tidak ditemukan.");
+    }
+
+    if (!selectedApplicant?.pengajuan_id) {
+      throw new Error("Pengajuan tidak ditemukan.");
+    }
+
+    const res = await fetch(
+      `/api/admin/pengajuan/${selectedApplicant.pengajuan_id}/dokumen/url?path=${encodeURIComponent(
+        doc.path
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    const json = await safeJson(res);
+
+    if (!res.ok) {
+      throw new Error(
+        (json?.message ?? "Gagal mendapatkan URL dokumen") +
+        (json?.detail ? ` (${json.detail})` : "")
+      );
+    }
+
+    if (!json?.data?.url) {
+      throw new Error("URL dokumen tidak tersedia.");
+    }
+
+    return json.data.url;
+  }
+
+  async function handleViewDocument(doc: AdminDoc) {
+    // Buka tab kosong terlebih dahulu supaya tidak dianggap popup
+    const newWindow = window.open("", "_blank");
+
+    try {
+      const url = await getDocumentUrl(doc);
+
+      if (!url) {
+        throw new Error("URL dokumen tidak tersedia.");
+      }
+
+      if (newWindow) {
+        newWindow.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    } catch (error) {
+      newWindow?.close();
+
+      console.error("VIEW DOCUMENT ERROR:", error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Gagal membuka dokumen."
+      );
+    }
+  }
+
+  async function handleDownloadDocument(doc: AdminDoc) {
+    try {
+      const url = await getDocumentUrl(doc);
+
+      if (!url) {
+        throw new Error("URL dokumen tidak tersedia.");
+      }
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(
+          `Gagal mengambil file (${response.status})`
+        );
+      }
+
+      const blob = await response.blob();
+
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+
+      link.href = blobUrl;
+      link.download = getFileName(doc);
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Bersihkan object URL
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch (error) {
+      console.error("DOWNLOAD DOCUMENT ERROR:", error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Gagal mengunduh dokumen."
+      );
+    }
+  }
+
   async function fetchAdminMe() {
     setAdminInfoErr(null);
 
@@ -245,72 +377,166 @@ export default function PelamarPage() {
     setHistoryLoading(false);
   }
 
-  async function updateStatus(newStatus: "Wawancara" | "Ditolak" | "Revisi") {
+  async function updateStatus(
+    newStatus:
+      | "Wawancara"
+      | "Ditolak"
+      | "Revisi"
+  ) {
     if (!selectedApplicant) return;
 
-    const token = await getToken();
+    const token =
+      await getToken();
+
     if (!token) {
-      alert("Session admin tidak ditemukan, silakan login ulang.");
+      alert(
+        "Session admin tidak ditemukan, silakan login ulang."
+      );
       return;
     }
 
-    // ✅ semua action harus pakai pengajuan terbaru
-    const pengajuanId = selectedApplicant.pengajuan_id;
+    const pengajuanId =
+      selectedApplicant.pengajuan_id;
+
     if (!pengajuanId) {
-      alert("Pengajuan terbaru tidak ditemukan untuk peserta ini.");
+      alert(
+        "Pengajuan terbaru tidak ditemukan untuk peserta ini."
+      );
       return;
     }
 
     try {
-      if (newStatus === "Wawancara") {
-        const res = await fetch(`/api/admin/pengajuan/${pengajuanId}/approve`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      if (
+        newStatus ===
+        "Wawancara"
+      ) {
+        const res =
+          await fetch(
+            `/api/admin/pengajuan/${pengajuanId}/wawancara`,
+            {
+              method: "POST",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
         if (!res.ok) {
-          const j = await safeJson(res);
-          alert((j?.message ?? "Gagal approve") + (j?.detail ? ` (${j.detail})` : ""));
+          const j =
+            await safeJson(res);
+
+          alert(
+            (j?.message ??
+              "Gagal memindahkan peserta ke tahap wawancara") +
+            (
+              j?.detail
+                ? ` (${j.detail})`
+                : ""
+            )
+          );
+
           return;
         }
       }
 
-      if (newStatus === "Ditolak") {
-        const res = await fetch(`/api/admin/pengajuan/${pengajuanId}/reject`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      if (
+        newStatus ===
+        "Ditolak"
+      ) {
+        const res =
+          await fetch(
+            `/api/admin/pengajuan/${pengajuanId}/reject`,
+            {
+              method: "POST",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
         if (!res.ok) {
-          const j = await safeJson(res);
-          alert((j?.message ?? "Gagal reject") + (j?.detail ? ` (${j.detail})` : ""));
+          const j =
+            await safeJson(res);
+
+          alert(
+            (j?.message ??
+              "Gagal reject") +
+            (
+              j?.detail
+                ? ` (${j.detail})`
+                : ""
+            )
+          );
+
           return;
         }
       }
 
-      if (newStatus === "Revisi") {
-        const note = prompt("Masukkan catatan revisi untuk pendaftar:");
+      if (
+        newStatus ===
+        "Revisi"
+      ) {
+        const note =
+          prompt(
+            "Masukkan catatan revisi untuk pendaftar:"
+          );
+
         if (!note) return;
 
-        const res = await fetch(`/api/admin/pengajuan/${pengajuanId}/revisi`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ note }),
-        });
+        const res =
+          await fetch(
+            `/api/admin/pengajuan/${pengajuanId}/revisi`,
+            {
+              method: "POST",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  note,
+                }),
+            }
+          );
 
         if (!res.ok) {
-          const j = await safeJson(res);
-          alert((j?.message ?? "Gagal revisi") + (j?.detail ? ` (${j.detail})` : ""));
+          const j =
+            await safeJson(res);
+
+          alert(
+            (j?.message ??
+              "Gagal revisi") +
+            (
+              j?.detail
+                ? ` (${j.detail})`
+                : ""
+            )
+          );
+
           return;
         }
       }
 
       closeDrawer();
+
       await fetchApplicants();
-    } catch (e) {
-      alert("Gagal update status. Cek console/server.");
-      console.error(e);
+
+    } catch (error) {
+      console.error(
+        error
+      );
+
+      alert(
+        "Gagal update status. Cek console/server."
+      );
     }
   }
 
@@ -368,7 +594,7 @@ export default function PelamarPage() {
       {loading ? (
         <p className="text-gray-500">Loading...</p>
       ) : (
-        <ApplicantTable data={filteredApplicants} onDetail={openDrawer} />
+        <ApplicantTable data={filteredApplicants} onDetail={openDrawer} />  
       )}
 
       <ApplicantDrawer
@@ -381,6 +607,8 @@ export default function PelamarPage() {
         docs={docs}
         docsLoading={docsLoading}
         docsError={docsError}
+        onViewDocument={handleViewDocument}
+        onDownloadDocument={handleDownloadDocument}
         history={history}
         historyLoading={historyLoading}
         historyError={historyError}

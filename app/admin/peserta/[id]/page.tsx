@@ -39,7 +39,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import {
+  supabase,
+} from "@/lib/supabase";
 
 import {
   mutateAdminParticipant,
@@ -516,10 +518,10 @@ export default function AdminParticipantDetailPage() {
 
           const {
             data:
-              pesertaData,
+            pesertaData,
 
             error:
-              pesertaError,
+            pesertaError,
           } =
             await supabase
               .from("peserta")
@@ -561,29 +563,29 @@ export default function AdminParticipantDetailPage() {
 
           const participant:
             PesertaData =
-            {
-              id:
-                pesertaData.id,
+          {
+            id:
+              pesertaData.id,
 
-              userId:
-                pesertaData.user_id,
+            userId:
+              pesertaData.user_id,
 
-              nomorPeserta:
-                pesertaData.nomor_peserta ??
-                "-",
+            nomorPeserta:
+              pesertaData.nomor_peserta ??
+              "-",
 
-              status:
-                pesertaData.status ??
-                "-",
+            status:
+              pesertaData.status ??
+              "-",
 
-              tanggalMulai:
-                pesertaData.tanggal_mulai ??
-                null,
+            tanggalMulai:
+              pesertaData.tanggal_mulai ??
+              null,
 
-              tanggalSelesai:
-                pesertaData.tanggal_selesai ??
-                null,
-            };
+            tanggalSelesai:
+              pesertaData.tanggal_selesai ??
+              null,
+          };
 
 
           setPeserta(
@@ -597,10 +599,10 @@ export default function AdminParticipantDetailPage() {
 
           const {
             data:
-              profileData,
+            profileData,
 
             error:
-              profileError,
+            profileError,
           } =
             await supabase
               .from("profiles")
@@ -870,7 +872,7 @@ export default function AdminParticipantDetailPage() {
           } else {
             const row =
               pendidikanResult.data as
-                GenericRow | null;
+              GenericRow | null;
 
 
             setPendidikan({
@@ -919,7 +921,7 @@ export default function AdminParticipantDetailPage() {
           } else {
             currentPlacement =
               penempatanResult.data as
-                GenericRow | null;
+              GenericRow | null;
 
 
             setHasPlacement(
@@ -935,7 +937,7 @@ export default function AdminParticipantDetailPage() {
               ?.pembimbing_id ===
               "string"
               ? currentPlacement
-                  .pembimbing_id
+                .pembimbing_id
               : null;
 
 
@@ -948,10 +950,10 @@ export default function AdminParticipantDetailPage() {
           ) {
             const {
               data:
-                supervisor,
+              supervisor,
 
               error:
-                supervisorError,
+              supervisorError,
             } =
               await supabase
                 .from("pembimbing")
@@ -982,10 +984,10 @@ export default function AdminParticipantDetailPage() {
             ) {
               const {
                 data:
-                  supervisorProfile,
+                supervisorProfile,
 
                 error:
-                  supervisorProfileError,
+                supervisorProfileError,
               } =
                 await supabase
                   .from("profiles")
@@ -1152,10 +1154,10 @@ export default function AdminParticipantDetailPage() {
           ) {
             const {
               data:
-                taskData,
+              taskData,
 
               error:
-                taskError,
+              taskError,
             } =
               await supabase
                 .from("tugas")
@@ -1323,7 +1325,7 @@ export default function AdminParticipantDetailPage() {
           } else {
             setPenilaian(
               penilaianResult.data as
-                PenilaianData | null
+              PenilaianData | null
             );
           }
 
@@ -1360,7 +1362,7 @@ export default function AdminParticipantDetailPage() {
           );
 
         } catch (
-          error
+        error
         ) {
           console.warn(
             "ADMIN PARTICIPANT DETAIL:",
@@ -1419,7 +1421,7 @@ export default function AdminParticipantDetailPage() {
           );
 
         } catch (
-          error
+        error
         ) {
           console.warn(
             "WORK HISTORY:",
@@ -1493,11 +1495,11 @@ export default function AdminParticipantDetailPage() {
         searchParams.get(
           "action"
         ) ===
-          "reactivate" &&
+        "reactivate" &&
         normalizeStatus(
           peserta.status
         ) ===
-          "diberhentikan"
+        "diberhentikan"
       ) {
         setActionError("");
 
@@ -1545,9 +1547,9 @@ export default function AdminParticipantDetailPage() {
               value
             ) =>
               value !==
-                null &&
+              null &&
               value !==
-                undefined
+              undefined
           );
 
 
@@ -1574,7 +1576,7 @@ export default function AdminParticipantDetailPage() {
 
         return Math.round(
           total /
-            values.length
+          values.length
         );
       },
       [
@@ -1699,7 +1701,7 @@ export default function AdminParticipantDetailPage() {
       await loadWorkHistory();
 
     } catch (
-      error
+    error
     ) {
       console.warn(
         "SAVE PLACEMENT:",
@@ -1720,6 +1722,67 @@ export default function AdminParticipantDetailPage() {
     }
   }
 
+  async function handleActivateParticipant() {
+    if (!peserta) {
+      return;
+    }
+
+    if (
+      normalizeStatus(peserta.status) !==
+      "diterima"
+    ) {
+      return;
+    }
+
+    try {
+      setActionSaving(true);
+
+      setActionError("");
+
+      const {
+        error,
+      } = await supabase
+        .from("peserta")
+        .update({
+          status: "aktif",
+        })
+        .eq(
+          "id",
+          peserta.id
+        );
+
+      if (error) {
+        throw new Error(
+          error.message
+        );
+      }
+
+      await loadParticipant(
+        true
+      );
+
+      await loadWorkHistory();
+
+    } catch (
+    error
+    ) {
+      console.warn(
+        "ACTIVATE PARTICIPANT:",
+        error
+      );
+
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Gagal menjadikan peserta aktif."
+      );
+
+    } finally {
+      setActionSaving(
+        false
+      );
+    }
+  }
 
   // ===================================================
   // MUTATION
@@ -1788,7 +1851,7 @@ export default function AdminParticipantDetailPage() {
       );
 
     } catch (
-      error
+    error
     ) {
       console.warn(
         "MUTATION:",
@@ -1877,7 +1940,7 @@ export default function AdminParticipantDetailPage() {
       );
 
     } catch (
-      error
+    error
     ) {
       console.warn(
         "TERMINATION:",
@@ -1947,7 +2010,7 @@ export default function AdminParticipantDetailPage() {
       );
 
     } catch (
-      error
+    error
     ) {
       console.warn(
         "REACTIVATION:",
@@ -2213,27 +2276,58 @@ export default function AdminParticipantDetailPage() {
           =============================================== */}
 
           {pesertaDiterima && (
+            <>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActionError("");
+              {/* ===========================================
+        JADIKAN PESERTA AKTIF
+    =========================================== */}
 
-                setPlacementOpen(
-                  true
-                );
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-            >
-              <MapPin
-                size={16}
-              />
+              <button
+                type="button"
+                disabled={actionSaving}
+                onClick={handleActivateParticipant}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionSaving ? (
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <UserRoundCheck
+                    size={16}
+                  />
+                )}
 
-              {hasPlacement
-                ? "Edit Penempatan"
-                : "Atur Penempatan"}
-            </button>
+                {actionSaving
+                  ? "Mengaktifkan..."
+                  : "Jadikan Peserta Aktif"}
+              </button>
 
+
+              {/* ===========================================
+        EDIT / ATUR PENEMPATAN
+    =========================================== */}
+
+              <button
+                type="button"
+                disabled={actionSaving}
+                onClick={() => {
+                  setActionError("");
+                  setPlacementOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <MapPin
+                  size={16}
+                />
+
+                {hasPlacement
+                  ? "Edit Penempatan"
+                  : "Atur Penempatan"}
+              </button>
+
+            </>
           )}
 
 
@@ -2244,25 +2338,25 @@ export default function AdminParticipantDetailPage() {
           {pesertaAktif &&
             !hasPlacement && (
 
-            <button
-              type="button"
-              onClick={() => {
-                setActionError("");
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError("");
 
-                setPlacementOpen(
-                  true
-                );
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
-            >
-              <MapPin
-                size={16}
-              />
+                  setPlacementOpen(
+                    true
+                  );
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+              >
+                <MapPin
+                  size={16}
+                />
 
-              Atur Penempatan
-            </button>
+                Atur Penempatan
+              </button>
 
-          )}
+            )}
 
 
           {/* ===============================================
@@ -2272,25 +2366,25 @@ export default function AdminParticipantDetailPage() {
           {pesertaAktif &&
             hasPlacement && (
 
-            <button
-              type="button"
-              onClick={() => {
-                setActionError("");
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError("");
 
-                setMutationOpen(
-                  true
-                );
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
-            >
-              <ArrowRightLeft
-                size={16}
-              />
+                  setMutationOpen(
+                    true
+                  );
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                <ArrowRightLeft
+                  size={16}
+                />
 
-              Mutasi
-            </button>
+                Mutasi
+              </button>
 
-          )}
+            )}
 
 
           {/* ===============================================
@@ -2300,25 +2394,25 @@ export default function AdminParticipantDetailPage() {
           {pesertaAktif &&
             hasPlacement && (
 
-            <button
-              type="button"
-              onClick={() => {
-                setActionError("");
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError("");
 
-                setTerminationOpen(
-                  true
-                );
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
-            >
-              <UserRoundX
-                size={16}
-              />
+                  setTerminationOpen(
+                    true
+                  );
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+              >
+                <UserRoundX
+                  size={16}
+                />
 
-              Hentikan Magang
-            </button>
+                Hentikan Magang
+              </button>
 
-          )}
+            )}
 
 
           {/* ===============================================
@@ -2412,35 +2506,35 @@ export default function AdminParticipantDetailPage() {
       ) &&
         !hasPlacement && (
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
 
-          <div className="flex gap-3">
+            <div className="flex gap-3">
 
-            <AlertTriangle
-              size={20}
-              className="mt-0.5 shrink-0 text-amber-600"
-            />
-
-
-            <div>
-
-              <p className="font-semibold text-amber-900">
-                Penempatan belum ditentukan
-              </p>
+              <AlertTriangle
+                size={20}
+                className="mt-0.5 shrink-0 text-amber-600"
+              />
 
 
-              <p className="mt-1 text-sm leading-6 text-amber-700">
-                Tentukan divisi, posisi, pembimbing, dan periode
-                magang terlebih dahulu.
-              </p>
+              <div>
+
+                <p className="font-semibold text-amber-900">
+                  Penempatan belum ditentukan
+                </p>
+
+
+                <p className="mt-1 text-sm leading-6 text-amber-700">
+                  Tentukan divisi, posisi, pembimbing, dan periode
+                  magang terlebih dahulu.
+                </p>
+
+              </div>
 
             </div>
 
           </div>
 
-        </div>
-
-      )}
+        )}
 
 
       {/* =================================================
@@ -2450,42 +2544,44 @@ export default function AdminParticipantDetailPage() {
       {queryErrors.length >
         0 && (
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
 
-          <div className="flex gap-3">
+            <div className="flex gap-3">
 
-            <AlertCircle
-              size={20}
-              className="mt-0.5 shrink-0 text-amber-600"
-            />
-
-
-            <div className="min-w-0">
-
-              <p className="font-semibold text-amber-900">
-                Sebagian data gagal dimuat
-              </p>
+              <AlertCircle
+                size={20}
+                className="mt-0.5 shrink-0 text-amber-600"
+              />
 
 
-              <div className="mt-3 space-y-1">
+              <div className="min-w-0">
 
-                {queryErrors.map(
-                  (
-                    item,
-                    index
-                  ) => (
+                <p className="font-semibold text-amber-900">
+                  Sebagian data gagal dimuat
+                </p>
 
-                  <p
-                    key={
-                      `${item}-${index}`
-                    }
-                    className="break-words font-mono text-xs text-amber-700"
-                  >
-                    {item}
-                  </p>
 
-                  )
-                )}
+                <div className="mt-3 space-y-1">
+
+                  {queryErrors.map(
+                    (
+                      item,
+                      index
+                    ) => (
+
+                      <p
+                        key={
+                          `${item}-${index}`
+                        }
+                        className="break-words font-mono text-xs text-amber-700"
+                      >
+                        {item}
+                      </p>
+
+                    )
+                  )}
+
+                </div>
 
               </div>
 
@@ -2493,9 +2589,7 @@ export default function AdminParticipantDetailPage() {
 
           </div>
 
-        </div>
-
-      )}
+        )}
 
 
       {/* =================================================
@@ -2505,36 +2599,36 @@ export default function AdminParticipantDetailPage() {
       {normalizedStatus ===
         "diberhentikan" && (
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
 
-          <div className="flex gap-3">
+            <div className="flex gap-3">
 
-            <UserRoundX
-              size={20}
-              className="mt-0.5 shrink-0 text-red-600"
-            />
-
-
-            <div>
-
-              <p className="font-semibold text-red-800">
-                Kegiatan magang telah dihentikan
-              </p>
+              <UserRoundX
+                size={20}
+                className="mt-0.5 shrink-0 text-red-600"
+              />
 
 
-              <p className="mt-1 text-sm leading-6 text-red-600">
-                Peserta tidak lagi berstatus aktif. Biodata dan riwayat
-                tetap tersimpan. Gunakan tombol Aktifkan Kembali jika
-                peserta akan melanjutkan program magang.
-              </p>
+              <div>
+
+                <p className="font-semibold text-red-800">
+                  Kegiatan magang telah dihentikan
+                </p>
+
+
+                <p className="mt-1 text-sm leading-6 text-red-600">
+                  Peserta tidak lagi berstatus aktif. Biodata dan riwayat
+                  tetap tersimpan. Gunakan tombol Aktifkan Kembali jika
+                  peserta akan melanjutkan program magang.
+                </p>
+
+              </div>
 
             </div>
 
           </div>
 
-        </div>
-
-      )}
+        )}
 
 
       {/* =================================================
@@ -2608,25 +2702,24 @@ export default function AdminParticipantDetailPage() {
               tab
             ) => (
 
-            <button
-              key={
-                tab.id
-              }
-              type="button"
-              onClick={() =>
-                setActiveTab(
+              <button
+                key={
                   tab.id
-                )
-              }
-              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                activeTab ===
-                tab.id
+                }
+                type="button"
+                onClick={() =>
+                  setActiveTab(
+                    tab.id
+                  )
+                }
+                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${activeTab ===
+                  tab.id
                   ? "bg-blue-600 text-white"
                   : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-              }`}
-            >
-              {tab.label}
-            </button>
+                  }`}
+              >
+                {tab.label}
+              </button>
 
             )
           )}
@@ -2645,127 +2738,127 @@ export default function AdminParticipantDetailPage() {
         {activeTab ===
           "profil" && (
 
-          <ProfileTab
-            peserta={
-              peserta
-            }
-            profile={
-              profile
-            }
-            pendidikan={
-              pendidikan
-            }
-            penempatan={
-              penempatan
-            }
-          />
+            <ProfileTab
+              peserta={
+                peserta
+              }
+              profile={
+                profile
+              }
+              pendidikan={
+                pendidikan
+              }
+              penempatan={
+                penempatan
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "absensi" && (
 
-          <AbsensiTab
-            rows={
-              absensi
-            }
-          />
+            <AbsensiTab
+              rows={
+                absensi
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "tugas" && (
 
-          <TugasTab
-            rows={
-              tugasPeserta
-            }
-            tugasMap={
-              tugasMap
-            }
-          />
+            <TugasTab
+              rows={
+                tugasPeserta
+              }
+              tugasMap={
+                tugasMap
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "jurnal" && (
 
-          <JurnalTab
-            rows={
-              jurnal
-            }
-          />
+            <JurnalTab
+              rows={
+                jurnal
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "izin" && (
 
-          <IzinTab
-            rows={
-              izin
-            }
-          />
+            <IzinTab
+              rows={
+                izin
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "laporan" && (
 
-          <LaporanTab
-            rows={
-              laporan
-            }
-          />
+            <LaporanTab
+              rows={
+                laporan
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "penilaian" && (
 
-          <PenilaianTab
-            data={
-              penilaian
-            }
-            nilaiAkhir={
-              nilaiAkhir
-            }
-          />
+            <PenilaianTab
+              data={
+                penilaian
+              }
+              nilaiAkhir={
+                nilaiAkhir
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "dokumen" && (
 
-          <DokumenTab
-            rows={
-              dokumen
-            }
-          />
+            <DokumenTab
+              rows={
+                dokumen
+              }
+            />
 
-        )}
+          )}
 
 
         {activeTab ===
           "riwayat" && (
 
-          <WorkHistoryTab
-            loading={
-              historyLoading
-            }
-            rows={
-              workHistory
-            }
-          />
+            <WorkHistoryTab
+              loading={
+                historyLoading
+              }
+              rows={
+                workHistory
+              }
+            />
 
-        )}
+          )}
 
       </div>
 
@@ -2955,25 +3048,25 @@ function PlacementModal({
   onSubmit,
 }: {
   open:
-    boolean;
+  boolean;
 
   participant:
-    AdminParticipant;
+  AdminParticipant;
 
   saving:
-    boolean;
+  boolean;
 
   error:
-    string;
+  string;
 
   onClose:
-    () => void;
+  () => void;
 
   onSubmit:
-    (
-      payload:
-        PlacementPayload
-    ) => Promise<void>;
+  (
+    payload:
+      PlacementPayload
+  ) => Promise<void>;
 }) {
   const [
     pembimbingOptions,
@@ -3110,10 +3203,10 @@ function PlacementModal({
 
           const {
             data:
-              pembimbingData,
+            pembimbingData,
 
             error:
-              pembimbingError,
+            pembimbingError,
           } =
             await supabase
               .from("pembimbing")
@@ -3157,7 +3250,7 @@ function PlacementModal({
               id: string;
 
               nama_lengkap:
-                string | null;
+              string | null;
             }> =
             [];
 
@@ -3168,10 +3261,10 @@ function PlacementModal({
           ) {
             const {
               data:
-                profileData,
+              profileData,
 
               error:
-                profileError,
+              profileError,
             } =
               await supabase
                 .from("profiles")
@@ -3248,7 +3341,7 @@ function PlacementModal({
           );
 
         } catch (
-          error
+        error
         ) {
           console.warn(
             "LOAD PEMBIMBING:",
@@ -3382,7 +3475,7 @@ function PlacementModal({
     if (
       tanggalSelesai &&
       tanggalSelesai <
-        tanggalMulai
+      tanggalMulai
     ) {
       setLocalError(
         "Tanggal selesai tidak boleh sebelum tanggal mulai."
@@ -3436,14 +3529,14 @@ function PlacementModal({
         {(error ||
           localError) && (
 
-          <ErrorBox
-            message={
-              localError ||
-              error
-            }
-          />
+            <ErrorBox
+              message={
+                localError ||
+                error
+              }
+            />
 
-        )}
+          )}
 
 
         <ParticipantPreview
@@ -3505,18 +3598,18 @@ function PlacementModal({
                 item
               ) => (
 
-              <option
-                key={
-                  item.id
-                }
-                value={
-                  item.id
-                }
-              >
-                {item.nama}
-                {" — "}
-                {item.divisi}
-              </option>
+                <option
+                  key={
+                    item.id
+                  }
+                  value={
+                    item.id
+                  }
+                >
+                  {item.nama}
+                  {" — "}
+                  {item.divisi}
+                </option>
 
               )
             )}
@@ -3640,25 +3733,25 @@ function MutationModal({
   onSubmit,
 }: {
   open:
-    boolean;
+  boolean;
 
   participant:
-    AdminParticipant;
+  AdminParticipant;
 
   saving:
-    boolean;
+  boolean;
 
   error:
-    string;
+  string;
 
   onClose:
-    () => void;
+  () => void;
 
   onSubmit:
-    (
-      payload:
-        MutateAdminParticipantPayload
-    ) => Promise<void>;
+  (
+    payload:
+      MutateAdminParticipantPayload
+  ) => Promise<void>;
 }) {
   const [
     pembimbingOptions,
@@ -3794,10 +3887,10 @@ function MutationModal({
 
           const {
             data:
-              pembimbingData,
+            pembimbingData,
 
             error:
-              pembimbingError,
+            pembimbingError,
           } =
             await supabase
               .from("pembimbing")
@@ -3841,7 +3934,7 @@ function MutationModal({
               id: string;
 
               nama_lengkap:
-                string | null;
+              string | null;
             }> =
             [];
 
@@ -3852,10 +3945,10 @@ function MutationModal({
           ) {
             const {
               data:
-                profileData,
+              profileData,
 
               error:
-                profileError,
+              profileError,
             } =
               await supabase
                 .from("profiles")
@@ -3915,7 +4008,7 @@ function MutationModal({
           );
 
         } catch (
-          error
+        error
         ) {
           console.warn(
             "LOAD PEMBIMBING:",
@@ -3989,7 +4082,7 @@ function MutationModal({
     if (
       tanggalSelesai &&
       tanggalSelesai <
-        tanggalMutasi
+      tanggalMutasi
     ) {
       setLocalError(
         "Tanggal selesai tidak boleh sebelum tanggal mutasi."
@@ -4051,14 +4144,14 @@ function MutationModal({
         {(error ||
           localError) && (
 
-          <ErrorBox
-            message={
-              localError ||
-              error
-            }
-          />
+            <ErrorBox
+              message={
+                localError ||
+                error
+              }
+            />
 
-        )}
+          )}
 
 
         <ParticipantPreview
@@ -4155,18 +4248,18 @@ function MutationModal({
                 item
               ) => (
 
-              <option
-                key={
-                  item.id
-                }
-                value={
-                  item.id
-                }
-              >
-                {item.nama}
-                {" — "}
-                {item.divisi}
-              </option>
+                <option
+                  key={
+                    item.id
+                  }
+                  value={
+                    item.id
+                  }
+                >
+                  {item.nama}
+                  {" — "}
+                  {item.divisi}
+                </option>
 
               )
             )}
@@ -4251,25 +4344,25 @@ function TerminationModal({
   onSubmit,
 }: {
   open:
-    boolean;
+  boolean;
 
   participant:
-    AdminParticipant;
+  AdminParticipant;
 
   saving:
-    boolean;
+  boolean;
 
   error:
-    string;
+  string;
 
   onClose:
-    () => void;
+  () => void;
 
   onSubmit:
-    (
-      payload:
-        TerminateAdminParticipantPayload
-    ) => Promise<void>;
+  (
+    payload:
+      TerminateAdminParticipantPayload
+  ) => Promise<void>;
 }) {
   const [
     tanggalBerhenti,
@@ -4347,7 +4440,7 @@ function TerminationModal({
 
 
         switch (
-          reasonType
+        reasonType
         ) {
           case "mengundurkan_diri":
             return [
@@ -4437,7 +4530,7 @@ function TerminationModal({
 
     if (
       reasonType ===
-        "mutasi_keluar" &&
+      "mutasi_keluar" &&
       !perusahaanTujuan.trim()
     ) {
       setLocalError(
@@ -4496,14 +4589,14 @@ function TerminationModal({
         {(error ||
           localError) && (
 
-          <ErrorBox
-            message={
-              localError ||
-              error
-            }
-          />
+            <ErrorBox
+              message={
+                localError ||
+                error
+              }
+            />
 
-        )}
+          )}
 
 
         <ParticipantPreview
@@ -4562,7 +4655,7 @@ function TerminationModal({
               setReasonType(
                 event.target
                   .value as
-                  TerminationReason
+                TerminationReason
               )
             }
             className={
@@ -4602,51 +4695,51 @@ function TerminationModal({
         {reasonType ===
           "mutasi_keluar" && (
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
 
-            <div className="flex gap-3">
+              <div className="flex gap-3">
 
-              <Building2
-                size={18}
-                className="mt-0.5 shrink-0 text-blue-600"
-              />
-
-
-              <div className="w-full">
-
-                <p className="text-sm font-semibold text-blue-800">
-                  Perusahaan Tujuan
-                </p>
-
-
-                <input
-                  value={
-                    perusahaanTujuan
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setPerusahaanTujuan(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Contoh: PT ABC Indonesia"
-                  className={`${inputClass} mt-3`}
+                <Building2
+                  size={18}
+                  className="mt-0.5 shrink-0 text-blue-600"
                 />
+
+
+                <div className="w-full">
+
+                  <p className="text-sm font-semibold text-blue-800">
+                    Perusahaan Tujuan
+                  </p>
+
+
+                  <input
+                    value={
+                      perusahaanTujuan
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setPerusahaanTujuan(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Contoh: PT ABC Indonesia"
+                    className={`${inputClass} mt-3`}
+                  />
+
+                </div>
 
               </div>
 
             </div>
 
-          </div>
-
-        )}
+          )}
 
 
         <FormLabel
           title={
             reasonType ===
-            "lainnya"
+              "lainnya"
               ? "Alasan"
               : "Keterangan Tambahan"
           }
@@ -4734,25 +4827,25 @@ function ReactivationModal({
   onSubmit,
 }: {
   open:
-    boolean;
+  boolean;
 
   participant:
-    AdminParticipant;
+  AdminParticipant;
 
   saving:
-    boolean;
+  boolean;
 
   error:
-    string;
+  string;
 
   onClose:
-    () => void;
+  () => void;
 
   onSubmit:
-    (
-      payload:
-        ReactivateAdminParticipantPayload
-    ) => Promise<void>;
+  (
+    payload:
+      ReactivateAdminParticipantPayload
+  ) => Promise<void>;
 }) {
   const [
     pembimbingOptions,
@@ -4838,7 +4931,7 @@ function ReactivationModal({
 
       const minimumDate =
         participant.tanggalSelesai &&
-        participant.tanggalSelesai >
+          participant.tanggalSelesai >
           today
           ? participant.tanggalSelesai
           : today;
@@ -4887,10 +4980,10 @@ function ReactivationModal({
 
           const {
             data:
-              pembimbingData,
+            pembimbingData,
 
             error:
-              pembimbingError,
+            pembimbingError,
           } =
             await supabase
               .from("pembimbing")
@@ -4934,7 +5027,7 @@ function ReactivationModal({
               id: string;
 
               nama_lengkap:
-                string | null;
+              string | null;
             }> =
             [];
 
@@ -4945,10 +5038,10 @@ function ReactivationModal({
           ) {
             const {
               data:
-                profileData,
+              profileData,
 
               error:
-                profileError,
+              profileError,
             } =
               await supabase
                 .from("profiles")
@@ -5025,7 +5118,7 @@ function ReactivationModal({
           );
 
         } catch (
-          error
+        error
         ) {
           console.warn(
             "LOAD PEMBIMBING REACTIVATION:",
@@ -5077,7 +5170,7 @@ function ReactivationModal({
     if (
       participant.tanggalSelesai &&
       tanggalMulai <
-        participant.tanggalSelesai
+      participant.tanggalSelesai
     ) {
       setLocalError(
         "Tanggal mulai kembali tidak boleh sebelum tanggal pemberhentian."
@@ -5123,7 +5216,7 @@ function ReactivationModal({
     if (
       tanggalSelesai &&
       tanggalSelesai <
-        tanggalMulai
+      tanggalMulai
     ) {
       setLocalError(
         "Tanggal selesai tidak boleh sebelum tanggal mulai."
@@ -5192,14 +5285,14 @@ function ReactivationModal({
         {(error ||
           localError) && (
 
-          <ErrorBox
-            message={
-              localError ||
-              error
-            }
-          />
+            <ErrorBox
+              message={
+                localError ||
+                error
+              }
+            />
 
-        )}
+          )}
 
 
         <ParticipantPreview
@@ -5243,8 +5336,8 @@ function ReactivationModal({
             Berakhir:{" "}
             {participant.tanggalSelesai
               ? formatDate(
-                  participant.tanggalSelesai
-                )
+                participant.tanggalSelesai
+              )
               : "-"}
           </p>
 
@@ -5330,18 +5423,18 @@ function ReactivationModal({
                 item
               ) => (
 
-              <option
-                key={
-                  item.id
-                }
-                value={
-                  item.id
-                }
-              >
-                {item.nama}
-                {" — "}
-                {item.divisi}
-              </option>
+                <option
+                  key={
+                    item.id
+                  }
+                  value={
+                    item.id
+                  }
+                >
+                  {item.nama}
+                  {" — "}
+                  {item.divisi}
+                </option>
 
               )
             )}
@@ -5453,16 +5546,16 @@ function ProfileTab({
   penempatan,
 }: {
   peserta:
-    PesertaData;
+  PesertaData;
 
   profile:
-    ProfileData | null;
+  ProfileData | null;
 
   pendidikan:
-    PendidikanData;
+  PendidikanData;
 
   penempatan:
-    PenempatanData;
+  PenempatanData;
 }) {
   return (
     <div>
@@ -5575,7 +5668,7 @@ function AbsensiTab({
   rows,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 }) {
   if (
     rows.length ===
@@ -5601,31 +5694,31 @@ function AbsensiTab({
           index
         ) => (
 
-        <DataRow
-          key={
-            getKey(
-              row,
-              index
-            )
-          }
-          title={
-            formatDate(
-              getNullableString(
-                row.tanggal
+          <DataRow
+            key={
+              getKey(
+                row,
+                index
               )
-            )
-          }
-          subtitle={`Masuk: ${getString(
-            row.jam_masuk
-          )} • Pulang: ${getString(
-            row.jam_pulang
-          )}`}
-          status={
-            getString(
-              row.status
-            )
-          }
-        />
+            }
+            title={
+              formatDate(
+                getNullableString(
+                  row.tanggal
+                )
+              )
+            }
+            subtitle={`Masuk: ${getString(
+              row.jam_masuk
+            )} • Pulang: ${getString(
+              row.jam_pulang
+            )}`}
+            status={
+              getString(
+                row.status
+              )
+            }
+          />
 
         )
       )}
@@ -5644,13 +5737,13 @@ function TugasTab({
   tugasMap,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 
   tugasMap:
-    Map<
-      string,
-      GenericRow
-    >;
+  Map<
+    string,
+    GenericRow
+  >;
 }) {
   if (
     rows.length ===
@@ -5684,8 +5777,8 @@ function TugasTab({
           const task =
             taskId
               ? tugasMap.get(
-                  taskId
-                )
+                taskId
+              )
               : undefined;
 
 
@@ -5732,7 +5825,7 @@ function JurnalTab({
   rows,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 }) {
   if (
     rows.length ===
@@ -5758,35 +5851,35 @@ function JurnalTab({
           index
         ) => (
 
-        <DataRow
-          key={
-            getKey(
-              row,
-              index
-            )
-          }
-          title={
-            getString(
-              row.judul,
+          <DataRow
+            key={
+              getKey(
+                row,
+                index
+              )
+            }
+            title={
               getString(
-                row.kegiatan,
-                "Jurnal Kegiatan"
+                row.judul,
+                getString(
+                  row.kegiatan,
+                  "Jurnal Kegiatan"
+                )
               )
-            )
-          }
-          subtitle={
-            formatDate(
-              getNullableString(
-                row.tanggal
+            }
+            subtitle={
+              formatDate(
+                getNullableString(
+                  row.tanggal
+                )
               )
-            )
-          }
-          status={
-            getString(
-              row.status
-            )
-          }
-        />
+            }
+            status={
+              getString(
+                row.status
+              )
+            }
+          />
 
         )
       )}
@@ -5804,7 +5897,7 @@ function IzinTab({
   rows,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 }) {
   if (
     rows.length ===
@@ -5830,34 +5923,34 @@ function IzinTab({
           index
         ) => (
 
-        <DataRow
-          key={
-            getKey(
-              row,
-              index
-            )
-          }
-          title={
-            getString(
-              row.alasan,
-              "Pengajuan Izin"
-            )
-          }
-          subtitle={`${formatDate(
-            getNullableString(
-              row.tanggal_mulai
-            )
-          )} — ${formatDate(
-            getNullableString(
-              row.tanggal_selesai
-            )
-          )}`}
-          status={
-            getString(
-              row.status
-            )
-          }
-        />
+          <DataRow
+            key={
+              getKey(
+                row,
+                index
+              )
+            }
+            title={
+              getString(
+                row.alasan,
+                "Pengajuan Izin"
+              )
+            }
+            subtitle={`${formatDate(
+              getNullableString(
+                row.tanggal_mulai
+              )
+            )} — ${formatDate(
+              getNullableString(
+                row.tanggal_selesai
+              )
+            )}`}
+            status={
+              getString(
+                row.status
+              )
+            }
+          />
 
         )
       )}
@@ -5875,7 +5968,7 @@ function LaporanTab({
   rows,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 }) {
   if (
     rows.length ===
@@ -5901,33 +5994,33 @@ function LaporanTab({
           index
         ) => (
 
-        <DataRow
-          key={
-            getKey(
-              row,
-              index
-            )
-          }
-          title={
-            getString(
-              row.judul,
-              getString(
-                row.tipe,
-                "Laporan"
+          <DataRow
+            key={
+              getKey(
+                row,
+                index
               )
-            )
-          }
-          subtitle={
-            getString(
-              row.periode
-            )
-          }
-          status={
-            getString(
-              row.status
-            )
-          }
-        />
+            }
+            title={
+              getString(
+                row.judul,
+                getString(
+                  row.tipe,
+                  "Laporan"
+                )
+              )
+            }
+            subtitle={
+              getString(
+                row.periode
+              )
+            }
+            status={
+              getString(
+                row.status
+              )
+            }
+          />
 
         )
       )}
@@ -5946,10 +6039,10 @@ function PenilaianTab({
   nilaiAkhir,
 }: {
   data:
-    PenilaianData | null;
+  PenilaianData | null;
 
   nilaiAkhir:
-    number | null;
+  number | null;
 }) {
   if (
     !data
@@ -6049,7 +6142,7 @@ function PenilaianTab({
 
           <p className="mt-1 text-2xl font-bold text-blue-700">
             {nilaiAkhir !==
-            null
+              null
               ? `${nilaiAkhir} / 100`
               : "-"}
           </p>
@@ -6066,28 +6159,28 @@ function PenilaianTab({
             score
           ) => (
 
-          <div
-            key={
-              score.label
-            }
-            className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-          >
+            <div
+              key={
+                score.label
+              }
+              className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+            >
 
-            <p className="text-xs font-medium text-neutral-400">
-              {score.label}
-            </p>
+              <p className="text-xs font-medium text-neutral-400">
+                {score.label}
+              </p>
 
 
-            <p className="mt-2 text-xl font-bold text-neutral-800">
-              {score.value !==
-                null &&
-              score.value !==
-                undefined
-                ? score.value
-                : "-"}
-            </p>
+              <p className="mt-2 text-xl font-bold text-neutral-800">
+                {score.value !==
+                  null &&
+                  score.value !==
+                  undefined
+                  ? score.value
+                  : "-"}
+              </p>
 
-          </div>
+            </div>
 
           )
         )}
@@ -6122,7 +6215,7 @@ function DokumenTab({
   rows,
 }: {
   rows:
-    GenericRow[];
+  GenericRow[];
 }) {
   if (
     rows.length ===
@@ -6234,10 +6327,10 @@ function WorkHistoryTab({
   rows,
 }: {
   loading:
-    boolean;
+  boolean;
 
   rows:
-    AdminParticipantWorkHistory[];
+  AdminParticipantWorkHistory[];
 }) {
   if (
     loading
@@ -6283,89 +6376,89 @@ function WorkHistoryTab({
             history
           ) => (
 
-          <div
-            key={
-              history.id
-            }
-            className="rounded-2xl border border-neutral-200 p-5"
-          >
+            <div
+              key={
+                history.id
+              }
+              className="rounded-2xl border border-neutral-200 p-5"
+            >
 
-            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
 
-              <WorkHistoryBadge
-                event={
-                  history.jenisEvent
-                }
-              />
-
-
-              <span className="text-xs text-neutral-400">
-                {formatDate(
-                  history.tanggalEvent
-                )}
-              </span>
-
-            </div>
+                <WorkHistoryBadge
+                  event={
+                    history.jenisEvent
+                  }
+                />
 
 
-            <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
-
-              <PlacementHistoryCard
-                label="Sebelum"
-                divisi={
-                  history.dari.divisi
-                }
-                posisi={
-                  history.dari.posisi
-                }
-                pembimbing={
-                  history.dari
-                    .pembimbingNama
-                }
-              />
-
-
-              <ArrowRight
-                size={18}
-                className="hidden shrink-0 text-neutral-300 lg:block"
-              />
-
-
-              <PlacementHistoryCard
-                label="Sesudah"
-                divisi={
-                  history.ke.divisi
-                }
-                posisi={
-                  history.ke.posisi
-                }
-                pembimbing={
-                  history.ke
-                    .pembimbingNama
-                }
-              />
-
-            </div>
-
-
-            {history.alasan && (
-
-              <div className="mt-4 rounded-xl bg-neutral-50 px-4 py-3">
-
-                <p className="text-xs font-medium text-neutral-400">
-                  Alasan / Keterangan
-                </p>
-
-
-                <p className="mt-1 text-sm leading-6 text-neutral-600">
-                  {history.alasan}
-                </p>
+                <span className="text-xs text-neutral-400">
+                  {formatDate(
+                    history.tanggalEvent
+                  )}
+                </span>
 
               </div>
 
-            )}
 
-          </div>
+              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+
+                <PlacementHistoryCard
+                  label="Sebelum"
+                  divisi={
+                    history.dari.divisi
+                  }
+                  posisi={
+                    history.dari.posisi
+                  }
+                  pembimbing={
+                    history.dari
+                      .pembimbingNama
+                  }
+                />
+
+
+                <ArrowRight
+                  size={18}
+                  className="hidden shrink-0 text-neutral-300 lg:block"
+                />
+
+
+                <PlacementHistoryCard
+                  label="Sesudah"
+                  divisi={
+                    history.ke.divisi
+                  }
+                  posisi={
+                    history.ke.posisi
+                  }
+                  pembimbing={
+                    history.ke
+                      .pembimbingNama
+                  }
+                />
+
+              </div>
+
+
+              {history.alasan && (
+
+                <div className="mt-4 rounded-xl bg-neutral-50 px-4 py-3">
+
+                  <p className="text-xs font-medium text-neutral-400">
+                    Alasan / Keterangan
+                  </p>
+
+
+                  <p className="mt-1 text-sm leading-6 text-neutral-600">
+                    {history.alasan}
+                  </p>
+
+                </div>
+
+              )}
+
+            </div>
 
           )
         )}
@@ -6387,13 +6480,13 @@ function SimpleListSection({
   children,
 }: {
   title:
-    string;
+  string;
 
   description:
-    string;
+  string;
 
   children:
-    ReactNode;
+  ReactNode;
 }) {
   return (
     <div>
@@ -6422,10 +6515,10 @@ function SectionTitle({
   description,
 }: {
   title:
-    string;
+  string;
 
   description:
-    string;
+  string;
 }) {
   return (
     <div className="mb-5">
@@ -6446,18 +6539,18 @@ function SectionTitle({
 
 function SummaryCard({
   icon:
-    Icon,
+  Icon,
   label,
   value,
 }: {
   icon:
-    LucideIcon;
+  LucideIcon;
 
   label:
-    string;
+  string;
 
   value:
-    string;
+  string;
 }) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -6495,18 +6588,18 @@ function SummaryCard({
 
 function InfoCard({
   icon:
-    Icon,
+  Icon,
   label,
   value,
 }: {
   icon:
-    LucideIcon;
+  LucideIcon;
 
   label:
-    string;
+  string;
 
   value:
-    string;
+  string;
 }) {
   return (
     <div className="rounded-2xl border border-neutral-200 p-4">
@@ -6537,13 +6630,13 @@ function DataRow({
   status,
 }: {
   title:
-    string;
+  string;
 
   subtitle:
-    string;
+  string;
 
   status:
-    string;
+  string;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -6577,7 +6670,7 @@ function EmptyState({
   text,
 }: {
   text:
-    string;
+  string;
 }) {
   return (
     <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
@@ -6605,7 +6698,7 @@ function StatusBadge({
   status,
 }: {
   status:
-    string;
+  string;
 }) {
   const normalized =
     normalizeStatus(
@@ -6675,7 +6768,7 @@ function StatusPill({
   status,
 }: {
   status:
-    string;
+  string;
 }) {
   const normalized =
     normalizeStatus(
@@ -6707,13 +6800,12 @@ function StatusPill({
 
   return (
     <span
-      className={`w-fit rounded-full px-3 py-1 text-[11px] font-semibold ${
-        success
-          ? "bg-emerald-50 text-emerald-700"
-          : warning
-            ? "bg-amber-50 text-amber-700"
-            : "bg-neutral-100 text-neutral-500"
-      }`}
+      className={`w-fit rounded-full px-3 py-1 text-[11px] font-semibold ${success
+        ? "bg-emerald-50 text-emerald-700"
+        : warning
+          ? "bg-amber-50 text-amber-700"
+          : "bg-neutral-100 text-neutral-500"
+        }`}
     >
       {formatStatus(
         status
@@ -6727,7 +6819,7 @@ function WorkHistoryBadge({
   event,
 }: {
   event:
-    string;
+  string;
 }) {
   if (
     event ===
@@ -6810,16 +6902,16 @@ function PlacementHistoryCard({
   pembimbing,
 }: {
   label:
-    string;
+  string;
 
   divisi:
-    string | null;
+  string | null;
 
   posisi:
-    string | null;
+  string | null;
 
   pembimbing:
-    string;
+  string;
 }) {
   return (
     <div className="min-w-0 flex-1 rounded-xl bg-neutral-50 p-4">
@@ -6860,7 +6952,7 @@ function ModalContainer({
   children,
 }: {
   children:
-    ReactNode;
+  ReactNode;
 }) {
   return (
     <>
@@ -6888,22 +6980,22 @@ function ModalHeader({
   onClose,
 }: {
   icon:
-    ReactNode;
+  ReactNode;
 
   iconClass:
-    string;
+  string;
 
   title:
-    string;
+  string;
 
   description:
-    string;
+  string;
 
   disabled:
-    boolean;
+  boolean;
 
   onClose:
-    () => void;
+  () => void;
 }) {
   return (
     <div className="flex items-start justify-between border-b border-neutral-100 px-6 py-5">
@@ -6961,19 +7053,19 @@ function ModalFooter({
   onSubmit,
 }: {
   saving:
-    boolean;
+  boolean;
 
   submitText:
-    string;
+  string;
 
   danger?:
-    boolean;
+  boolean;
 
   onClose:
-    () => void;
+  () => void;
 
   onSubmit:
-    () => void;
+  () => void;
 }) {
   return (
     <div className="flex flex-col-reverse gap-3 border-t border-neutral-100 px-6 py-5 sm:flex-row sm:justify-end">
@@ -7000,11 +7092,10 @@ function ModalFooter({
         onClick={
           onSubmit
         }
-        className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
-          danger
-            ? "bg-red-600 hover:bg-red-700"
-            : "bg-blue-600 hover:bg-blue-700"
-        }`}
+        className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${danger
+          ? "bg-red-600 hover:bg-red-700"
+          : "bg-blue-600 hover:bg-blue-700"
+          }`}
       >
 
         {saving && (
@@ -7032,7 +7123,7 @@ function ParticipantPreview({
   participant,
 }: {
   participant:
-    AdminParticipant;
+  AdminParticipant;
 }) {
   return (
     <div className="rounded-2xl bg-neutral-50 p-5">
@@ -7068,7 +7159,7 @@ function ErrorBox({
   message,
 }: {
   message:
-    string;
+  string;
 }) {
   return (
     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -7083,10 +7174,10 @@ function FormLabel({
   children,
 }: {
   title:
-    string;
+  string;
 
   children:
-    ReactNode;
+  ReactNode;
 }) {
   return (
     <label className="block">
@@ -7199,7 +7290,7 @@ function getString(
 ) {
   if (
     typeof value ===
-      "string" &&
+    "string" &&
     value.trim()
   ) {
     return value;
@@ -7208,7 +7299,7 @@ function getString(
 
   if (
     typeof value ===
-      "number"
+    "number"
   ) {
     return String(
       value
@@ -7224,10 +7315,10 @@ function getNullableString(
   value:
     unknown
 ):
-string | null {
+  string | null {
   if (
     typeof value ===
-      "string" &&
+    "string" &&
     value.trim()
   ) {
     return value;
@@ -7249,8 +7340,8 @@ function getKey(
     "string"
     ? row.id
     : String(
-        index
-      );
+      index
+    );
 }
 
 
@@ -7316,7 +7407,7 @@ function getToday() {
 
     String(
       date.getMonth() +
-        1
+      1
     ).padStart(
       2,
       "0"
@@ -7341,7 +7432,7 @@ function cleanFormValue(
   if (
     !value ||
     value ===
-      "-"
+    "-"
   ) {
     return "";
   }
@@ -7361,16 +7452,16 @@ function formatDatabaseError(
   const dbError =
     error as {
       message?:
-        string;
+      string;
 
       details?:
-        string;
+      string;
 
       code?:
-        string;
+      string;
 
       hint?:
-        string;
+      string;
     };
 
 
@@ -7380,7 +7471,7 @@ function formatDatabaseError(
 
       dbError
         ?.message ||
-        "Database query gagal.",
+      "Database query gagal.",
 
       dbError
         ?.code
