@@ -1,0 +1,149 @@
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f3f3f3;
+}
+
+.container {
+  min-height: 100vh;
+}
+
+/* Topbar */
+.topbar {
+  height: 70px;
+  background: #ffffff;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.menu {
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.logo-red {
+  color: #e53935;
+  font-weight: bold;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-info {
+  text-align: right;
+}
+
+.name {
+  display: block;
+  font-size: 14px;
+}
+
+.status {
+  font-size: 12px;
+  color: red;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: #ddd;
+  border-radius: 50%;
+}
+
+/* Progress */
+.progress-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+}
+
+.circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-bottom: 5px;
+}
+
+.green {
+  background: #4caf50;
+}
+
+.yellow {
+  background: #fdd835;
+}
+
+.red {
+  background: #e53935;
+}
+
+.line {
+  width: 40px;
+  height: 2px;
+  background: #ccc;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 70vh;
+}
+
+.empty {
+  text-align: center;
+  color: #777;
+}
+
+.dash {
+  font-size: 30px;
+  margin-bottom: 20px;
+}
+
+.empty p {
+  margin-bottom: 20px;
+}
+
+/* Button */
+.btn-add {
+  background: #d9d9d9;
+  border: none;
+  padding: 10px 30px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+/* ✅ Hover Effect */
+.btn-add:hover {
+  background: #bdbdbd;
+  transform: scale(1.05);
+}

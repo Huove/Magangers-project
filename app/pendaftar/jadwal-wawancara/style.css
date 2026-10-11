@@ -1,0 +1,324 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background: #ececec;
+}
+
+/* LAYOUT */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 250px;
+  background: #f7f7f7;
+  border-right: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  transition: 0.3s;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar-header {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+.logo-red {
+  color: #e53935;
+}
+
+.menu {
+  list-style: none;
+  padding: 20px;
+  flex: 1;
+}
+
+.menu li {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.menu li:hover {
+  background: #e4ecff;
+}
+
+.menu .active {
+  background: #4a7dff;
+  color: white;
+}
+
+.logout {
+  padding: 20px;
+  border-top: 1px solid #ddd;
+  color: red;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TOPBAR */
+.topbar {
+  height: 90px;
+  background: white;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+}
+
+/* TIMELINE */
+.timeline {
+  display: flex;
+  align-items: center;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 110px;
+}
+
+.label-top {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.green { background: #4caf50; }
+.yellow { background: #f4c430; }
+.red { background: #e53935; }
+
+.line {
+  width: 70px;
+  height: 2px;
+  background: #ccc;
+}
+
+/* USER */
+.user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #d9d9d9;
+}
+
+/* CONTENT */
+.content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* CARD */
+.card-area {
+  position: relative;
+  width: 520px;
+  height: 360px;
+}
+
+.card-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #b7cdfb;
+  border-radius: 45px;
+  top: 25px;
+  left: 25px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #f7f7f7;
+  border-radius: 40px;
+  padding: 45px;
+  text-align: center;
+  box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+  transition: 0.2s ease;
+}
+
+.card:hover {
+  transform: scale(1.02);
+}
+
+.card h2 {
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.card p {
+  color: #555;
+  margin-bottom: 25px;
+}
+
+/* SCHEDULE */
+.schedule {
+  display: flex;
+  justify-content: space-between;
+}
+
+.box {
+  background: white;
+  width: 180px;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+  transition: 0.2s;
+}
+
+.box:hover {
+  transform: scale(1.05);
+}
+
+.badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+
+.smk { background: #4a90e2; }
+.mhs { background: #6cc070; }
+
+.warning {
+  margin-top: 25px;
+  font-weight: bold;
+}
+
+/* ================= USER ================= */
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  text-align: right;
+}
+
+.user-name {
+  display: block;
+  font-size: 14px;
+}
+
+.user-status {
+  font-size: 12px;
+  color: #f4c430; /* kuning */
+}
+
+/* ================= CARD AREA ================= */
+
+.card-area {
+  position: relative;
+  width: 520px;
+  height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ✅ background biru center & hanya sedikit offset */
+.card-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #b7cdfb;
+  border-radius: 45px;
+
+  /* CENTER PERFECT */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-6deg);
+
+  z-index: 0;
+}
+
+/* ✅ card lurus */
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #f5f5f5;
+  border-radius: 40px;
+  padding: 45px;
+  text-align: center;
+
+  /* ✅ Outer soft shadow */
+  box-shadow:
+    0 15px 30px rgba(0, 0, 0, 0.12),
+    0 5px 10px rgba(0, 0, 0, 0.08);
+
+  /* ✅ Inner shadow effect (cekung halus) */
+  box-shadow:
+    inset 0 4px 8px rgba(255, 255, 255, 0.8),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.08),
+    0 15px 30px rgba(0, 0, 0, 0.12);
+
+      background: linear-gradient(
+    145deg,
+    #fafafa,
+    #eaeaea
+  );
+
+  transition: transform 0.15s ease;
+}
+
+/* ✅ hover sangat kecil */
+.card:hover {
+  transform: scale(1.01);
+  
+}
+
+/* schedule box hover juga kecil */
+.box {
+  background: white;
+  width: 180px;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+  transition: transform 0.15s ease;
+}
+
+.box:hover {
+  transform: scale(1.03);
+}
