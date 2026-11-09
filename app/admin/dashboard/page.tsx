@@ -202,10 +202,10 @@ export default function DashboardPage() {
 
       const {
         count:
-          terminatedCount,
+        terminatedCount,
 
         error:
-          terminatedError,
+        terminatedError,
       } =
         await supabase
           .from(

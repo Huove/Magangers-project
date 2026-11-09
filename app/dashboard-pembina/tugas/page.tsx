@@ -62,22 +62,22 @@ type TaskRow = {
 
   // ID tugas_peserta.
   assignmentId:
-    | string
-    | null;
+  | string
+  | null;
 
   judul: string;
 
   deskripsi: string;
 
   pesertaId:
-    | string
-    | null;
+  | string
+  | null;
 
   pesertaNama: string;
 
   deadlineRaw:
-    | string
-    | null;
+  | string
+  | null;
 
   batasWaktu: string;
 
@@ -97,16 +97,16 @@ type TaskDatabaseRow = {
   judul: string;
 
   deskripsi:
-    | string
-    | null;
+  | string
+  | null;
 
   pembimbing_id:
-    | string
-    | null;
+  | string
+  | null;
 
   deadline:
-    | string
-    | null;
+  | string
+  | null;
 
   created_at: string;
 };
@@ -120,12 +120,12 @@ type AssignmentDatabaseRow = {
   peserta_id: string;
 
   status:
-    | string
-    | null;
+  | string
+  | null;
 
   dikumpulkan_at:
-    | string
-    | null;
+  | string
+  | null;
 
   created_at: string;
 };
@@ -135,16 +135,16 @@ type ParticipantDatabaseRow = {
   id: string;
 
   user_id:
-    | string
-    | null;
+  | string
+  | null;
 
   nama_lengkap:
-    | string
-    | null;
+  | string
+  | null;
 
   status:
-    | string
-    | null;
+  | string
+  | null;
 };
 
 
@@ -404,7 +404,7 @@ export default function KelolaTugasPage() {
           user,
         },
         error:
-          userError,
+        userError,
       } =
         await supabase.auth
           .getUser();
@@ -430,9 +430,9 @@ export default function KelolaTugasPage() {
 
       const {
         data:
-          pembimbing,
+        pembimbing,
         error:
-          pembimbingError,
+        pembimbingError,
       } =
         await supabase
           .from(
@@ -475,9 +475,9 @@ export default function KelolaTugasPage() {
 
       const {
         data:
-          placementData,
+        placementData,
         error:
-          placementError,
+        placementError,
       } =
         await supabase
           .from(
@@ -533,9 +533,9 @@ export default function KelolaTugasPage() {
       ) {
         const {
           data:
-            pesertaData,
+          pesertaData,
           error:
-            pesertaError,
+          pesertaError,
         } =
           await supabase
             .from(
@@ -601,9 +601,9 @@ export default function KelolaTugasPage() {
       ) {
         const {
           data:
-            profiles,
+          profiles,
           error:
-            profileError,
+          profileError,
         } =
           await supabase
             .from(
@@ -636,7 +636,7 @@ export default function KelolaTugasPage() {
               profile.id,
               profile
                 .nama_lengkap ??
-                "Peserta"
+              "Peserta"
             );
           }
         }
@@ -678,7 +678,7 @@ export default function KelolaTugasPage() {
         pesertaMap.set(
           peserta.id,
           nama ??
-            "Peserta"
+          "Peserta"
         );
       }
 
@@ -734,9 +734,9 @@ export default function KelolaTugasPage() {
 
       const {
         data:
-          tugasData,
+        tugasData,
         error:
-          tugasError,
+        tugasError,
       } =
         await supabase
           .from(
@@ -808,9 +808,9 @@ export default function KelolaTugasPage() {
 
       const {
         data:
-          tugasPesertaData,
+        tugasPesertaData,
         error:
-          tugasPesertaError,
+        tugasPesertaError,
       } =
         await supabase
           .from(
@@ -880,9 +880,9 @@ export default function KelolaTugasPage() {
       ) {
         const {
           data:
-            missingPesertaData,
+          missingPesertaData,
           error:
-            missingPesertaError,
+          missingPesertaError,
         } =
           await supabase
             .from(
@@ -914,7 +914,7 @@ export default function KelolaTugasPage() {
               peserta.id,
               peserta
                 .nama_lengkap ??
-                "Peserta"
+              "Peserta"
             );
           }
         }
@@ -1137,16 +1137,16 @@ export default function KelolaTugasPage() {
         ) => {
           const matchStatus =
             statusFilter ===
-              "Semua Status" ||
+            "Semua Status" ||
             tugas.status ===
-              statusFilter;
+            statusFilter;
 
 
           const matchPeserta =
             pesertaFilter ===
-              "Semua Peserta" ||
+            "Semua Peserta" ||
             tugas.pesertaNama ===
-              pesertaFilter;
+            pesertaFilter;
 
 
           const matchQuery =
@@ -1273,9 +1273,9 @@ export default function KelolaTugasPage() {
 
       const {
         data:
-          newTask,
+        newTask,
         error:
-          taskError,
+        taskError,
       } =
         await supabase
           .from(
@@ -1314,7 +1314,7 @@ export default function KelolaTugasPage() {
 
       const {
         error:
-          assignmentError,
+        assignmentError,
       } =
         await supabase
           .from(
@@ -1352,6 +1352,48 @@ export default function KelolaTugasPage() {
         throw assignmentError;
       }
 
+      try {
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        if (!session?.access_token) {
+          throw new Error("Sesi login tidak tersedia.");
+        }
+
+        const response = await fetch("/api/notifikasi/tugas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tugasId: newTask.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error(
+            "Tugas berhasil dibuat, tetapi email gagal dikirim:",
+            result.error
+          );
+        } else {
+          console.log("Hasil notifikasi email:", result);
+        }
+      } catch (emailError) {
+        // Jangan gagalkan proses tugas hanya karena email gagal.
+        console.error(
+          "Tugas berhasil dibuat, tetapi notifikasi email gagal:",
+          emailError
+        );
+      }
 
       // ===============================================
       // 3. REFRESH
@@ -1359,10 +1401,7 @@ export default function KelolaTugasPage() {
 
       await fetchTugas();
 
-
-      setShowModal(
-        false
-      );
+      setShowModal(false);
 
 
       resetForm();
@@ -1433,7 +1472,7 @@ export default function KelolaTugasPage() {
 
       const {
         error:
-          deleteError,
+        deleteError,
       } =
         await supabase
           .from(
@@ -1612,8 +1651,8 @@ export default function KelolaTugasPage() {
               setStatusFilter(
                 event.target
                   .value as
-                  | "Semua Status"
-                  | StatusTugas
+                | "Semua Status"
+                | StatusTugas
               )
             }
             className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue"
@@ -1976,40 +2015,40 @@ export default function KelolaTugasPage() {
                           {openMenuId ===
                             tugas.rowId && (
 
-                            <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-100 bg-white py-1.5 shadow-lg">
+                              <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-100 bg-white py-1.5 shadow-lg">
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  alert(
-                                    "Fitur edit tugas akan kita sambungkan selanjutnya."
-                                  );
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    alert(
+                                      "Fitur edit tugas akan kita sambungkan selanjutnya."
+                                    );
 
-                                  setOpenMenuId(
-                                    null
-                                  );
-                                }}
-                                className="block w-full px-4 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50"
-                              >
-                                Edit Tugas
-                              </button>
+                                    setOpenMenuId(
+                                      null
+                                    );
+                                  }}
+                                  className="block w-full px-4 py-2 text-left text-xs font-medium text-slate-600 hover:bg-slate-50"
+                                >
+                                  Edit Tugas
+                                </button>
 
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDelete(
-                                    tugas
-                                  )
-                                }
-                                className="block w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-50"
-                              >
-                                Hapus Tugas
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDelete(
+                                      tugas
+                                    )
+                                  }
+                                  className="block w-full px-4 py-2 text-left text-xs font-medium text-red-500 hover:bg-red-50"
+                                >
+                                  Hapus Tugas
+                                </button>
 
-                            </div>
+                              </div>
 
-                          )}
+                            )}
 
                         </div>
 
@@ -2037,48 +2076,48 @@ export default function KelolaTugasPage() {
 
       {!loading &&
         filtered.length >
-          0 && (
+        0 && (
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-slate-500">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-slate-500">
 
-          <p>
-            Menampilkan 1 sampai{" "}
-            {filtered.length}
-            {" dari "}
-            {filtered.length}
-            {" tugas"}
-          </p>
-
-
-          <div className="flex items-center gap-1.5">
-
-            <button
-              type="button"
-              disabled
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-300"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            <p>
+              Menampilkan 1 sampai{" "}
+              {filtered.length}
+              {" dari "}
+              {filtered.length}
+              {" tugas"}
+            </p>
 
 
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue text-sm font-semibold text-white">
-              1
-            </span>
+            <div className="flex items-center gap-1.5">
+
+              <button
+                type="button"
+                disabled
+                className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-300"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
 
 
-            <button
-              type="button"
-              disabled
-              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-300"
-            >
-              <ChevronNext className="h-4 w-4" />
-            </button>
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue text-sm font-semibold text-white">
+                1
+              </span>
+
+
+              <button
+                type="button"
+                disabled
+                className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-300"
+              >
+                <ChevronNext className="h-4 w-4" />
+              </button>
+
+            </div>
 
           </div>
 
-        </div>
-
-      )}
+        )}
 
 
       {/* =================================================
@@ -2266,11 +2305,11 @@ export default function KelolaTugasPage() {
                 {pesertaOptions.length ===
                   0 && (
 
-                  <p className="mt-2 text-xs text-amber-600">
-                    Belum ada peserta aktif yang berada di bawah bimbingan Anda.
-                  </p>
+                    <p className="mt-2 text-xs text-amber-600">
+                      Belum ada peserta aktif yang berada di bawah bimbingan Anda.
+                    </p>
 
-                )}
+                  )}
 
               </div>
 
@@ -2397,11 +2436,11 @@ function formatStatusTugas(
 
   if (
     value ===
-      "selesai" ||
+    "selesai" ||
     value ===
-      "disetujui" ||
+    "disetujui" ||
     value ===
-      "approved"
+    "approved"
   ) {
     return "Selesai";
   }
@@ -2413,17 +2452,17 @@ function formatStatusTugas(
 
   if (
     value ===
-      "perlu_perbaikan" ||
+    "perlu_perbaikan" ||
     value ===
-      "perlu_revisi" ||
+    "perlu_revisi" ||
     value ===
-      "revisi" ||
+    "revisi" ||
     value ===
-      "direvisi" ||
+    "direvisi" ||
     value ===
-      "ditolak" ||
+    "ditolak" ||
     value ===
-      "rejected"
+    "rejected"
   ) {
     return "Perlu Perbaikan";
   }
@@ -2498,7 +2537,7 @@ function getInisial(
   if (
     !nama ||
     nama ===
-      "-"
+    "-"
   ) {
     return "-";
   }
@@ -2531,8 +2570,8 @@ function getInisial(
   return (
     words[0][0] +
     words[
-      words.length -
-        1
+    words.length -
+    1
     ][0]
   ).toUpperCase();
 }

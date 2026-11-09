@@ -8,11 +8,9 @@ export default function AktifLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-dvh overflow-hidden bg-gray-50">
       {/* SIDEBAR */}
-      <aside className="h-screen shrink-0">
-        <Sidebar />
-      </aside>
+      <Sidebar />
 
       {/* AREA KANAN */}
       <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
@@ -21,7 +19,7 @@ export default function AktifLayout({
           <TopNavbar />
         </div>
 
-        {/* HANYA INI YANG SCROLL */}
+        {/* AREA KONTEN */}
         <main className="min-h-0 flex-1 overflow-y-auto">
           {children}
         </main>

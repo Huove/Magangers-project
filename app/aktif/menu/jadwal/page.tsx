@@ -10,6 +10,7 @@ import {
 } from "@internationalized/date";
 
 import { Calendar } from "@/components/aktif/ui/calendar";
+import { useState } from "react";
 
 import {
   Clock,
@@ -74,60 +75,56 @@ export default function JadwalPage() {
 
   const selectedDateString = dateToString(selectedDate);
 
+
   React.useEffect(() => {
     async function fetchJadwal() {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from("jadwal")
-        .select(`
-          id,
-          tanggal,
-          kegiatan,
-          jam_mulai,
-          jam_selesai,
-          lokasi,
-          keterangan
-        `)
-        .order("tanggal", { ascending: true })
-        .order("jam_mulai", { ascending: true });
-      console.log("DATA JADWAL:", data);
-      console.log("ERROR JADWAL:", error);
+      try {
+        const { data, error } = await supabase
+          .from("pengumuman")
+          .select("id, judul, isi, tanggal, status")
+          .not("tanggal", "is", null)
+          .in("status", ["dipublikasikan", "terjadwal"])
+          .order("tanggal", { ascending: true });
 
-      if (error) {
-        console.error(
-          "Gagal mengambil data jadwal:",
-          error
+        if (error) {
+          throw error;
+        }
+
+        const formattedData: Jadwal[] = (data ?? [])
+          .filter((item) => item.tanggal)
+          .map((item) => ({
+            id: String(item.id),
+            tanggal: item.tanggal,
+            kegiatan: item.judul,
+            jamMulai: "",
+            jamSelesai: "",
+            lokasi: "",
+            keterangan: item.isi ?? "",
+          }));
+
+        console.log("DATA PENGUMUMAN UNTUK JADWAL:", data);
+        console.log("HASIL PEMETAAN JADWAL:", formattedData);
+
+        setJadwalData(formattedData);
+      } catch (err) {
+        console.error("Gagal mengambil jadwal:", err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Gagal mengambil data jadwal."
         );
-
-        setError("Gagal mengambil data jadwal.");
-        setJadwalData([]);
+      } finally {
         setLoading(false);
-
-        return;
       }
-
-      const formattedData: Jadwal[] = (data ?? []).map(
-        (item) => ({
-          id: item.id,
-          tanggal: item.tanggal,
-          kegiatan: item.kegiatan,
-          jamMulai:
-            item.jam_mulai?.slice(0, 5) ?? "",
-          jamSelesai:
-            item.jam_selesai?.slice(0, 5) ?? "",
-          lokasi: item.lokasi,
-          keterangan: item.keterangan,
-        })
-      );
-
-      setJadwalData(formattedData);
-      setLoading(false);
     }
 
     fetchJadwal();
   }, []);
+
 
   /*
    * =====================================================
@@ -159,7 +156,7 @@ export default function JadwalPage() {
    */
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-6 md:p-8">
+      <div className="w-full bg-white p-6 md:p-8">
         <div className="mb-8">
           <div className="mb-1 flex items-center gap-2">
             <CalendarDays
@@ -198,7 +195,7 @@ export default function JadwalPage() {
    */
   if (error) {
     return (
-      <div className="min-h-screen bg-white p-6 md:p-8">
+      <div className="w-full bg-white p-6 md:p-8">
         <div className="mb-8">
           <div className="mb-1 flex items-center gap-2">
             <CalendarDays
@@ -240,7 +237,7 @@ export default function JadwalPage() {
    * =====================================================
    */
   return (
-    <div className="min-h-screen bg-white p-6 md:p-8">
+    <div className="w-full bg-white p-6 md:p-8">
       {/* HEADER */}
       <div className="mb-8">
         <div className="mb-1 flex items-center gap-2">

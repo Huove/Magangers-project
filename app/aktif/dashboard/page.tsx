@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import Link from "next/link";
+import ScheduleWidget from "@/components/aktif/schedule";
 
 import {
   User,
@@ -910,18 +911,16 @@ export default function DashboardPesertaPage() {
             {/* STATUS */}
 
             <div
-              className={`flex shrink-0 items-center gap-2 self-start rounded-full px-4 py-2 text-sm font-medium md:self-center ${
-                profile.status === "aktif"
+              className={`flex shrink-0 items-center gap-2 self-start rounded-full px-4 py-2 text-sm font-medium md:self-center ${profile.status === "aktif"
                   ? "bg-emerald-100 text-emerald-700"
                   : "bg-neutral-100 text-neutral-600"
-              }`}
+                }`}
             >
               <span
-                className={`h-2 w-2 rounded-full ${
-                  profile.status === "aktif"
+                className={`h-2 w-2 rounded-full ${profile.status === "aktif"
                     ? "bg-emerald-500"
                     : "bg-neutral-400"
-                }`}
+                  }`}
               />
 
               {formatStatusPeserta(profile.status)}
@@ -1237,6 +1236,10 @@ export default function DashboardPesertaPage() {
         </div>
       </div>
 
+      <div className="mt-8">
+        <ScheduleWidget />
+      </div>
+
       {/* =====================================
           QUICK ACTION
       ===================================== */}
@@ -1458,14 +1461,14 @@ function hitungProgressMagang(
     1,
     Math.ceil(
       (selesai.getTime() - mulai.getTime()) /
-        oneDay
+      oneDay
     ) + 1
   );
 
   let hariBerjalan =
     Math.floor(
       (sekarang.getTime() - mulai.getTime()) /
-        oneDay
+      oneDay
     ) + 1;
 
   hariBerjalan = Math.max(

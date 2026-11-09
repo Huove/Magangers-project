@@ -103,19 +103,17 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`flex h-screen shrink-0 flex-col border-r border-neutral-200 bg-white transition-all duration-300 ${
-        isOpen ? "w-64" : "w-20"
-      }`}
+      className={`flex h-dvh shrink-0 flex-col border-r border-neutral-200 bg-white transition-all duration-300 ${isOpen ? "w-64" : "w-20"
+        }`}
     >
       {/* ================= HEADER ================= */}
 
       <div
-        className={`flex items-center px-5 py-5 ${
-          isOpen ? "gap-3" : "justify-center"
-        }`}
+        className={`flex items-center px-5 py-5 ${isOpen ? "gap-3" : "justify-center"
+          }`}
       >
 
-                {/* Tombol Toggle */}
+        {/* Tombol Toggle */}
         <button
           onClick={() => setIsOpen(!isOpen)}
           aria-label={
@@ -123,9 +121,8 @@ export default function Sidebar({
               ? "Tutup sidebar"
               : "Buka sidebar"
           }
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-700 transition hover:bg-neutral-100 ${
-            isOpen ? "ml-auto" : ""
-          }`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-700 transition hover:bg-neutral-100 ${isOpen ? "ml-auto" : ""
+            }`}
         >
           <Menu size={23} />
         </button>
@@ -175,10 +172,9 @@ export default function Sidebar({
                   text-[16px] font-medium
                   transition-all duration-200
 
-                  ${
-                    isActive
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-neutral-700 hover:bg-neutral-100"
+                  ${isActive
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-neutral-700 hover:bg-neutral-100"
                   }
 
                   ${!isOpen ? "justify-center" : ""}
