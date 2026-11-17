@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
@@ -7,14 +8,12 @@ import InterviewFilter from "@/components/admin/interview/InterviewFilter";
 import InterviewTable from "@/components/admin/interview/InterviewTable";
 import InterviewDrawer from "@/components/admin/interview/InterviewDrawer";
 import StatCard from "@/components/admin/dashboard/StatisticCard";
+import SearchableParticipantSelect from "@/components/admin/interview/SearchableParticipantSelect";
 
 import { CalendarClock, Clock3, Users, BadgeCheck } from "lucide-react";
 
 export interface Interview {
-  // ini dipakai untuk memilih peserta
   peserta_id: string;
-
-  // jadwal id kalau sudah ada jadwal
   jadwal_id: string | null;
 
   nama: string;
@@ -23,12 +22,11 @@ export interface Interview {
   posisi: string;
 
   interviewer: string;
-  tanggal: string; // "YYYY-MM-DD" atau "" kalau belum ada
-  jam: string;     // "HH:MM" atau "" kalau belum ada
+  tanggal: string;
+  jam: string;
   metode: string;
   lokasi: string;
 
-  // sesuai UI kamu: "Menunggu" | "Dijadwalkan" | "Selesai" | dll
   status: string;
 }
 
@@ -49,7 +47,8 @@ export default function WawancaraPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Semua Status");
 
-  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
+  const [selectedInterview, setSelectedInterview] =
+    useState<Interview | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -71,7 +70,9 @@ export default function WawancaraPage() {
 
   async function safeJson(res: Response) {
     const text = await res.text();
+
     if (!text) return null;
+
     try {
       return JSON.parse(text);
     } catch {
@@ -79,31 +80,42 @@ export default function WawancaraPage() {
     }
   }
 
+  /* =========================
+     AMBIL DATA WAWANCARA
+  ========================= */
   async function fetchInterviews() {
     setLoading(true);
     setError(null);
 
     try {
       const token = await getToken();
+
       if (!token) {
         setError("Session admin tidak ditemukan. Silakan login ulang.");
         return;
       }
 
       const res = await fetch("/api/admin/wawancara", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         cache: "no-store",
       });
 
       const json = await safeJson(res);
 
       if (!res.ok) {
-        setError((json?.message ?? "Gagal load data") + (json?.detail ? ` (${json.detail})` : ""));
+        setError(
+          (json?.message ?? "Gagal load data") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
         return;
       }
 
-      // endpoint /api/admin/wawancara harus return { data: Interview[] }
       setData(json?.data ?? []);
+    } catch (error) {
+      console.error("Gagal mengambil data wawancara:", error);
+      setError("Terjadi kesalahan saat mengambil data wawancara.");
     } finally {
       setLoading(false);
     }
@@ -113,10 +125,18 @@ export default function WawancaraPage() {
     fetchInterviews();
   }, []);
 
+  /* =========================
+     FILTER DATA
+  ========================= */
   const filteredData = useMemo(() => {
     return data.filter((item) => {
-      const matchSearch = item.nama.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = status === "Semua Status" || item.status === status;
+      const matchSearch = item.nama
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchStatus =
+        status === "Semua Status" || item.status === status;
+
       return matchSearch && matchStatus;
     });
   }, [data, search, status]);
@@ -127,19 +147,25 @@ export default function WawancaraPage() {
   const totalInterview = data.length;
 
   const waitingInterview = data.filter(
-    (item) => item.status === "Menunggu" || item.status === "Dijadwalkan"
+    (item) =>
+      item.status === "Menunggu" ||
+      item.status === "Dijadwalkan"
   ).length;
 
-  const finishedInterview = data.filter((item) => item.status === "Selesai").length;
+  const finishedInterview = data.filter(
+    (item) => item.status === "Selesai"
+  ).length;
 
   const todayInterview = data.filter((item) => {
     if (!item.tanggal) return false;
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const today = new Date().toISOString().slice(0, 10);
+
     return item.tanggal === today;
   }).length;
 
   /* =========================
-     BUKA DETAIL
+     BUKA DETAIL PESERTA
   ========================= */
   function openDrawer(interview: Interview) {
     setSelectedInterview(interview);
@@ -147,15 +173,17 @@ export default function WawancaraPage() {
   }
 
   /* =========================
-     BUKA MODAL BUAT/RESCHEDULE
+     BUKA MODAL RESCHEDULE
   ========================= */
   function handleOpenReschedule() {
     if (!selectedInterview) return;
 
-    // prefill schedule dari data peserta yang dipilih
     setSchedule({
       peserta_id: selectedInterview.peserta_id,
-      interviewer: selectedInterview.interviewer !== "-" ? selectedInterview.interviewer : "",
+      interviewer:
+        selectedInterview.interviewer !== "-"
+          ? selectedInterview.interviewer
+          : "",
       tanggal: selectedInterview.tanggal ?? "",
       jam: selectedInterview.jam ?? "",
       metode: selectedInterview.metode || "Offline",
@@ -166,32 +194,76 @@ export default function WawancaraPage() {
   }
 
   /* =========================
-     SIMPAN JADWAL (BUAT atau RESCHEDULE)
+     SIMPAN JADWAL / RESCHEDULE
   ========================= */
   async function handleSaveScheduleFromDrawer() {
     if (!selectedInterview) return;
 
-    if (!schedule.interviewer || !schedule.tanggal || !schedule.jam) {
+    if (
+      !schedule.interviewer ||
+      !schedule.tanggal ||
+      !schedule.jam
+    ) {
       alert("Interviewer, tanggal, dan jam wajib diisi.");
       return;
     }
 
     const token = await getToken();
+
     if (!token) {
-      alert("Session admin tidak ditemukan.");
+      alert("Session admin tidak ditemukan. Silakan login ulang.");
       return;
     }
 
-    // kalau sudah ada jadwal -> PATCH reschedule
-    if (selectedInterview.jadwal_id) {
-      const res = await fetch(`/api/admin/wawancara/${selectedInterview.jadwal_id}`, {
-        method: "PATCH",
+    try {
+      // Jika jadwal sudah ada, lakukan reschedule.
+      if (selectedInterview.jadwal_id) {
+        const res = await fetch(
+          `/api/admin/wawancara/${selectedInterview.jadwal_id}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "reschedule",
+              interviewer: schedule.interviewer,
+              tanggal: schedule.tanggal,
+              jam: schedule.jam,
+              metode: schedule.metode,
+              lokasi: schedule.lokasi,
+            }),
+          }
+        );
+
+        const json = await safeJson(res);
+
+        if (!res.ok) {
+          alert(
+            (json?.message ?? "Gagal reschedule") +
+              (json?.detail ? ` (${json.detail})` : "")
+          );
+          return;
+        }
+
+        setRescheduleModalOpen(false);
+        setDrawerOpen(false);
+        setSelectedInterview(null);
+
+        await fetchInterviews();
+        return;
+      }
+
+      // Jika belum ada jadwal, buat jadwal baru.
+      const res = await fetch("/api/admin/wawancara", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: "reschedule",
+          peserta_id: selectedInterview.peserta_id,
           interviewer: schedule.interviewer,
           tanggal: schedule.tanggal,
           jam: schedule.jam,
@@ -201,49 +273,28 @@ export default function WawancaraPage() {
       });
 
       const json = await safeJson(res);
+
       if (!res.ok) {
-        alert((json?.message ?? "Gagal reschedule") + (json?.detail ? ` (${json.detail})` : ""));
+        alert(
+          (json?.message ?? "Gagal buat jadwal") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
         return;
       }
 
       setRescheduleModalOpen(false);
       setDrawerOpen(false);
       setSelectedInterview(null);
+
       await fetchInterviews();
-      return;
+    } catch (error) {
+      console.error("Gagal menyimpan jadwal:", error);
+      alert("Terjadi kesalahan saat menyimpan jadwal.");
     }
-
-    // kalau belum ada jadwal -> POST buat jadwal
-    const res = await fetch("/api/admin/wawancara", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        peserta_id: selectedInterview.peserta_id,
-        interviewer: schedule.interviewer,
-        tanggal: schedule.tanggal,
-        jam: schedule.jam,
-        metode: schedule.metode,
-        lokasi: schedule.lokasi,
-      }),
-    });
-
-    const json = await safeJson(res);
-    if (!res.ok) {
-      alert((json?.message ?? "Gagal buat jadwal") + (json?.detail ? ` (${json.detail})` : ""));
-      return;
-    }
-
-    setRescheduleModalOpen(false);
-    setDrawerOpen(false);
-    setSelectedInterview(null);
-    await fetchInterviews();
   }
 
   /* =========================
-     TAMBAH JADWAL (DARI TOMBOL FILTER)
+     TAMBAH JADWAL BARU
   ========================= */
   function handleOpenAdd() {
     setSchedule({
@@ -254,49 +305,67 @@ export default function WawancaraPage() {
       metode: "Offline",
       lokasi: "",
     });
+
     setAddModalOpen(true);
   }
 
   async function handleAddSchedule() {
-    if (!schedule.peserta_id || !schedule.interviewer || !schedule.tanggal || !schedule.jam) {
-      alert("Peserta, interviewer, tanggal, dan jam wajib diisi.");
+    if (
+      !schedule.peserta_id ||
+      !schedule.interviewer ||
+      !schedule.tanggal ||
+      !schedule.jam
+    ) {
+      alert(
+        "Peserta, interviewer, tanggal, dan jam wajib diisi."
+      );
       return;
     }
 
     const token = await getToken();
+
     if (!token) {
-      alert("Session admin tidak ditemukan.");
+      alert("Session admin tidak ditemukan. Silakan login ulang.");
       return;
     }
 
-    const res = await fetch("/api/admin/wawancara", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        peserta_id: schedule.peserta_id,
-        interviewer: schedule.interviewer,
-        tanggal: schedule.tanggal,
-        jam: schedule.jam,
-        metode: schedule.metode,
-        lokasi: schedule.lokasi,
-      }),
-    });
+    try {
+      const res = await fetch("/api/admin/wawancara", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          peserta_id: schedule.peserta_id,
+          interviewer: schedule.interviewer,
+          tanggal: schedule.tanggal,
+          jam: schedule.jam,
+          metode: schedule.metode,
+          lokasi: schedule.lokasi,
+        }),
+      });
 
-    const json = await safeJson(res);
-    if (!res.ok) {
-      alert((json?.message ?? "Gagal simpan jadwal") + (json?.detail ? ` (${json.detail})` : ""));
-      return;
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        alert(
+          (json?.message ?? "Gagal simpan jadwal") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
+        return;
+      }
+
+      setAddModalOpen(false);
+      await fetchInterviews();
+    } catch (error) {
+      console.error("Gagal menambahkan jadwal:", error);
+      alert("Terjadi kesalahan saat menyimpan jadwal.");
     }
-
-    setAddModalOpen(false);
-    await fetchInterviews();
   }
 
   /* =========================
-     LULUS / TIDAK LULUS (butuh jadwal_id)
+     PESERTA LULUS WAWANCARA
   ========================= */
   async function handlePass() {
     if (!selectedInterview?.jadwal_id) {
@@ -305,26 +374,50 @@ export default function WawancaraPage() {
     }
 
     const token = await getToken();
-    const res = await fetch(`/api/admin/wawancara/${selectedInterview.jadwal_id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ action: "lulus" }),
-    });
 
-    const json = await safeJson(res);
-    if (!res.ok) {
-      alert((json?.message ?? "Gagal") + (json?.detail ? ` (${json.detail})` : ""));
+    if (!token) {
+      alert("Session admin tidak ditemukan. Silakan login ulang.");
       return;
     }
 
-    setDrawerOpen(false);
-    setSelectedInterview(null);
-    await fetchInterviews();
+    try {
+      const res = await fetch(
+        `/api/admin/wawancara/${selectedInterview.jadwal_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "lulus",
+          }),
+        }
+      );
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        alert(
+          (json?.message ?? "Gagal memproses kelulusan") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
+        return;
+      }
+
+      setDrawerOpen(false);
+      setSelectedInterview(null);
+
+      await fetchInterviews();
+    } catch (error) {
+      console.error("Gagal memproses kelulusan:", error);
+      alert("Terjadi kesalahan saat menghubungi server.");
+    }
   }
 
+  /* =========================
+     PESERTA TIDAK LULUS
+  ========================= */
   async function handleFail() {
     if (!selectedInterview?.jadwal_id) {
       alert("Belum ada jadwal. Buat jadwal dulu.");
@@ -332,31 +425,125 @@ export default function WawancaraPage() {
     }
 
     const token = await getToken();
-    const res = await fetch(`/api/admin/wawancara/${selectedInterview.jadwal_id}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ action: "tidak_lulus" }),
-    });
 
-    const json = await safeJson(res);
-    if (!res.ok) {
-      alert((json?.message ?? "Gagal") + (json?.detail ? ` (${json.detail})` : ""));
+    if (!token) {
+      alert("Session admin tidak ditemukan. Silakan login ulang.");
       return;
     }
 
-    setDrawerOpen(false);
-    setSelectedInterview(null);
-    await fetchInterviews();
+    try {
+      const res = await fetch(
+        `/api/admin/wawancara/${selectedInterview.jadwal_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "tidak_lulus",
+          }),
+        }
+      );
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        alert(
+          (json?.message ?? "Gagal memproses hasil wawancara") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
+        return;
+      }
+
+      setDrawerOpen(false);
+      setSelectedInterview(null);
+
+      await fetchInterviews();
+    } catch (error) {
+      console.error("Gagal memproses hasil wawancara:", error);
+      alert("Terjadi kesalahan saat menghubungi server.");
+    }
+  }
+
+  /* =========================
+     BLACKLIST PESERTA
+  ========================= */
+  async function handleBlacklist(alasan: string) {
+    if (!selectedInterview) return;
+
+    const alasanBersih = alasan.trim();
+
+    if (!alasanBersih) {
+      alert("Alasan blacklist wajib diisi.");
+      return;
+    }
+
+    const konfirmasi = window.confirm(
+      `Apakah kamu yakin ingin memasukkan ${selectedInterview.nama} ke blacklist?\n\nAlasan: ${alasanBersih}\n\nTindakan ini akan mengubah status peserta.`
+    );
+
+    if (!konfirmasi) return;
+
+    const token = await getToken();
+
+    if (!token) {
+      alert("Session admin tidak ditemukan. Silakan login ulang.");
+      return;
+    }
+
+    try {
+      // Gunakan peserta_id, bukan jadwal_id.
+      const res = await fetch(
+        `/api/admin/wawancara/${selectedInterview.peserta_id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "blacklist",
+            alasan_blacklist: alasanBersih,
+          }),
+        }
+      );
+
+      const json = await safeJson(res);
+
+      if (!res.ok) {
+        alert(
+          (json?.message ?? "Gagal melakukan blacklist") +
+            (json?.detail ? ` (${json.detail})` : "")
+        );
+        return;
+      }
+
+      alert(
+        `Peserta ${selectedInterview.nama} berhasil dimasukkan ke blacklist.`
+      );
+
+      setDrawerOpen(false);
+      setSelectedInterview(null);
+
+      // Muat ulang daftar wawancara.
+      await fetchInterviews();
+    } catch (error) {
+      console.error("Blacklist error:", error);
+      alert("Terjadi kesalahan saat menghubungi server.");
+    }
   }
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Pengelolaan Wawancara</h1>
-        <p className="mt-2 text-gray-500">Kelola jadwal, interviewer, dan hasil wawancara peserta magang.</p>
+        <h1 className="text-3xl font-bold">
+          Pengelolaan Wawancara
+        </h1>
+
+        <p className="mt-2 text-gray-500">
+          Kelola jadwal, interviewer, dan hasil wawancara peserta magang.
+        </p>
       </div>
 
       {error && (
@@ -365,11 +552,34 @@ export default function WawancaraPage() {
         </div>
       )}
 
-      <div className="mb-8 grid grid-cols-4 gap-5">
-        <StatCard title="Total Wawancara" value={totalInterview} icon={CalendarClock} color="#2563EB" />
-        <StatCard title="Hari Ini" value={todayInterview} icon={Clock3} color="#F59E0B" />
-        <StatCard title="Menunggu" value={waitingInterview} icon={Users} color="#7C3AED" />
-        <StatCard title="Selesai" value={finishedInterview} icon={BadgeCheck} color="#22C55E" />
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Total Wawancara"
+          value={totalInterview}
+          icon={CalendarClock}
+          color="#2563EB"
+        />
+
+        <StatCard
+          title="Hari Ini"
+          value={todayInterview}
+          icon={Clock3}
+          color="#F59E0B"
+        />
+
+        <StatCard
+          title="Menunggu"
+          value={waitingInterview}
+          icon={Users}
+          color="#7C3AED"
+        />
+
+        <StatCard
+          title="Selesai"
+          value={finishedInterview}
+          icon={BadgeCheck}
+          color="#22C55E"
+        />
       </div>
 
       <InterviewFilter
@@ -383,19 +593,24 @@ export default function WawancaraPage() {
       {loading ? (
         <p className="text-gray-500">Loading...</p>
       ) : (
-        <InterviewTable data={filteredData} onDetail={openDrawer} />
+        <InterviewTable
+          data={filteredData}
+          onDetail={openDrawer}
+        />
       )}
 
+      {/* DRAWER DETAIL WAWANCARA */}
       <InterviewDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        interview={selectedInterview as any}
+        interview={selectedInterview}
         onPass={handlePass}
         onFail={handleFail}
         onReschedule={handleOpenReschedule}
+        onBlacklist={handleBlacklist}
       />
 
-      {/* MODAL TAMBAH JADWAL (PILIH PESERTA) */}
+      {/* MODAL TAMBAH JADWAL */}
       {addModalOpen && (
         <ScheduleModal
           title="Tambah Jadwal Wawancara"
@@ -410,13 +625,17 @@ export default function WawancaraPage() {
         />
       )}
 
-      {/* MODAL BUAT/RESCHEDULE DARI DRAWER */}
+      {/* MODAL BUAT / RESCHEDULE */}
       {rescheduleModalOpen && (
         <ScheduleModal
-          title={selectedInterview?.jadwal_id ? "Jadwalkan Ulang Wawancara" : "Buat Jadwal Wawancara"}
+          title={
+            selectedInterview?.jadwal_id
+              ? "Jadwalkan Ulang Wawancara"
+              : "Buat Jadwal Wawancara"
+          }
           data={schedule}
           setData={setSchedule}
-          pesertaOptions={null} // dari drawer: peserta sudah fixed
+          pesertaOptions={null}
           onClose={() => setRescheduleModalOpen(false)}
           onSubmit={handleSaveScheduleFromDrawer}
         />
@@ -425,7 +644,9 @@ export default function WawancaraPage() {
   );
 }
 
-/* ================= MODAL SCHEDULE ================= */
+/* =========================
+   MODAL SCHEDULE
+========================= */
 
 function ScheduleModal({
   title,
@@ -442,85 +663,123 @@ function ScheduleModal({
   onClose: () => void;
   onSubmit: () => void;
 }) {
-  function updateField(field: keyof ScheduleData, value: string) {
-    setData((current) => ({ ...current, [field]: value }));
+  function updateField(
+    field: keyof ScheduleData,
+    value: string
+  ) {
+    setData((current) => ({
+      ...current,
+      [field]: value,
+    }));
   }
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-5">
-        <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between border-b px-6 py-5">
             <div>
               <h2 className="text-xl font-bold">{title}</h2>
-              <p className="mt-1 text-sm text-gray-500">Masukkan informasi jadwal wawancara.</p>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Masukkan informasi jadwal wawancara.
+              </p>
             </div>
-            <button onClick={onClose} className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100">
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100"
+            >
               ✕
             </button>
           </div>
 
           <div className="max-h-[70vh] overflow-y-auto p-6">
-            <div className="grid grid-cols-2 gap-5">
-              {/* pilih peserta hanya kalau modal Add */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {pesertaOptions && (
-                <div className="col-span-2">
-                  <label className="mb-2 block text-sm font-medium">Pilih Peserta</label>
-                  <select
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-sm font-medium">
+                    Pilih Peserta
+                  </label>
+
+                  <SearchableParticipantSelect
+                    options={pesertaOptions}
                     value={data.peserta_id}
-                    onChange={(e) => updateField("peserta_id", e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
-                  >
-                    <option value="">-- Pilih Peserta --</option>
-                    {pesertaOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) =>
+                      updateField("peserta_id", value)
+                    }
+                  />
                 </div>
               )}
 
               <div>
-                <label className="mb-2 block text-sm font-medium">Interviewer</label>
+                <label className="mb-2 block text-sm font-medium">
+                  Interviewer
+                </label>
+
                 <select
                   value={data.interviewer}
-                  onChange={(e) => updateField("interviewer", e.target.value)}
+                  onChange={(e) =>
+                    updateField("interviewer", e.target.value)
+                  }
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
                 >
                   <option value="">Pilih Interviewer</option>
-                  <option>Kak Fitri</option>
-                  <option>Pak Budi</option>
-                  <option>Kak Andi</option>
+                  <option value="Kak Fitri">Kak Fitri</option>
+                  <option value="Pak Budi">Pak Budi</option>
+                  <option value="Kak Andi">Kak Andi</option>
                 </select>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium">Tanggal</label>
+                <label className="mb-2 block text-sm font-medium">
+                  Tanggal
+                </label>
+
                 <input
                   type="date"
                   value={data.tanggal}
-                  onChange={(e) => updateField("tanggal", e.target.value)}
+                  onChange={(e) =>
+                    updateField("tanggal", e.target.value)
+                  }
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium">Jam</label>
+                <label className="mb-2 block text-sm font-medium">
+                  Jam
+                </label>
+
                 <input
                   type="time"
                   value={data.jam}
-                  onChange={(e) => updateField("jam", e.target.value)}
+                  onChange={(e) =>
+                    updateField("jam", e.target.value)
+                  }
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium">Metode</label>
+                <label className="mb-2 block text-sm font-medium">
+                  Metode
+                </label>
+
                 <select
                   value={data.metode}
-                  onChange={(e) => updateField("metode", e.target.value)}
+                  onChange={(e) =>
+                    updateField("metode", e.target.value)
+                  }
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
                 >
                   <option value="Offline">Offline</option>
@@ -528,12 +787,17 @@ function ScheduleModal({
                 </select>
               </div>
 
-              <div className="col-span-2">
-                <label className="mb-2 block text-sm font-medium">Lokasi / Link Meeting</label>
+              <div className="sm:col-span-2">
+                <label className="mb-2 block text-sm font-medium">
+                  Lokasi / Link Meeting
+                </label>
+
                 <input
                   type="text"
                   value={data.lokasi}
-                  onChange={(e) => updateField("lokasi", e.target.value)}
+                  onChange={(e) =>
+                    updateField("lokasi", e.target.value)
+                  }
                   placeholder="Meeting Room / Google Meet"
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
                 />
@@ -542,10 +806,19 @@ function ScheduleModal({
           </div>
 
           <div className="flex justify-end gap-3 border-t px-6 py-5">
-            <button onClick={onClose} className="rounded-xl border border-gray-300 px-5 py-2.5 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-gray-300 px-5 py-2.5 hover:bg-gray-50"
+            >
               Batal
             </button>
-            <button onClick={onSubmit} className="rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700">
+
+            <button
+              type="button"
+              onClick={onSubmit}
+              className="rounded-xl bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700"
+            >
               Simpan Jadwal
             </button>
           </div>

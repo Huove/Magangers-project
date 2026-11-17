@@ -22,6 +22,7 @@ const MENU_ITEMS = [
   { label: "Penilaian Peserta", icon: BarChart3, href: "/dashboard-pembina/penilaian" },
   { label: "Jadwal Evaluasi", icon: CalendarClock, href: "/dashboard-pembina/jadwal-evaluasi" },
   { label: "Laporan Peserta", icon: FileCheck2, href: "/dashboard-pembina/laporan" },
+  { label: "Absensi Peserta", icon: FileCheck2, href: "/dashboard-pembina/absen" },
 ];
 
 export default function PembinaSidebar() {

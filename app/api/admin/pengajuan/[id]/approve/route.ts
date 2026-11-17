@@ -59,14 +59,6 @@ export async function POST(req: Request, { params }: { params: any }) {
   }
 
   // ✅ status peserta: verifikasi (menunggu dijadwalkan wawancara)
-  const { error: upPesertaErr } = await admin
-    .from("peserta")
-    .update({ status: "verifikasi" })
-    .eq("id", found.pengajuan.peserta_id);
-
-  if (upPesertaErr) {
-    return NextResponse.json({ message: "Update peserta error", detail: upPesertaErr.message }, { status: 500 });
-  }
 
   return NextResponse.json({ message: "OK", detail: `matched_by=${found.used}, pengajuan_id=${pengajuanId}` });
 }

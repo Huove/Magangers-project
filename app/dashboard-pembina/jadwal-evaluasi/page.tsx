@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
-
+import SearchableSelect from "@/components/common/SearchableSelect";
 
 // =====================================================
 // TYPES
@@ -2034,49 +2034,24 @@ export default function JadwalEvaluasiPage() {
 
                   <FormField label="Peserta">
 
-                    <select
-                      value={
-                        form.pesertaId
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateForm(
-                          "pesertaId",
-                          event.target.value
-                        )
-                      }
-                      className={
-                        inputClass
-                      }
-                    >
+                    
+                <SearchableSelect
+                  options={availableParticipants.map((participant) => ({
+                    value: participant.pesertaId,
+                    label: `${participant.nama}${
+                      participant.posisi !== "-"
+                        ? ` — ${participant.posisi}`
+                        : ""
+                    }`,
+                  }))}
+                  value={form.pesertaId}
+                  onChange={(value) =>
+                    updateForm("pesertaId", value)
+                  }
+                  placeholder="Pilih peserta"
+                  searchPlaceholder="Cari nama atau posisi peserta..."
+                />
 
-                      <option value="">
-                        Pilih peserta
-                      </option>
-
-
-                      {availableParticipants.map(
-                        (
-                          participant
-                        ) => (
-
-                        <option
-                          key={
-                            participant.pesertaId
-                          }
-                          value={
-                            participant.pesertaId
-                          }
-                        >
-                          {participant.nama}
-                          {participant.posisi !== "-" ? ` — ${participant.posisi}` : ""}
-                        </option>
-
-                        )
-                      )}
-
-                    </select>
 
                   </FormField>
 

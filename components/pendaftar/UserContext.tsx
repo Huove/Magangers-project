@@ -1,429 +1,231 @@
+// components/pendaftar/UserContext.tsx
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createClient, type Session } from "@supabase/supabase-js";
 
-import { supabase } from "@/lib/supabase";
-
-export type StatusType =
-  | "tidak_aktif"
-  | "mengajukan"
-  | "verifikasi"
-  | "wawancara"
-  | "diterima"
-  | "ditolak"
-  | "aktif"
-  | "selesai";
-
-interface UserDataType {
-  pribadi: any;
-  pendidikan: any;
-}
-
-interface DocumentType {
-  kartuPelajar?: string;
-  ktp?: string;
-  cv?: string;
-  suratPengantar?: string;
-  pasFoto?: string;
-}
-
-interface JadwalWawancara {
+type JadwalWawancara = {
   id: string;
   interviewer: string;
   tanggal: string;
   jam: string;
   metode: string;
-  lokasi: string | null;
+  lokasi: string;
   status: string;
-  catatan: string | null;
-}
 
-interface UserContextType {
-  photo: string | null;
+  catatan?: string | null;
 
-  setPhoto: (
-    value: string | null
-  ) => void;
+  // tugas text
+  tugas?: string | null;
+  jawaban_tugas?: string | null;
+  jawaban_tugas_submitted_at?: string | null;
 
-  status: StatusType;
+  // tugas file
+  jawaban_tugas_file_path?: string | null;
+  jawaban_tugas_file_name?: string | null;
+  jawaban_tugas_file_uploaded_at?: string | null;
+  jawaban_tugas_file_url?: string | null;
+} | null;
 
-  setStatus: (
-    value: StatusType
-  ) => void;
+type UserDataShape =
+  | {
+      pribadi?: Record<string, any>;
+      pendidikan?: Record<string, any>;
+      [key: string]: any;
+    }
+  | null;
 
-  latestPengajuanStatus:
-    string | null;
+type DocumentsShape = Record<string, any>;
 
-  latestPengajuanId:
-    string | null;
+export type UserCtx = {
+  loading: boolean;
 
-  revisiNote:
-    string | null;
+  // auth/session (buat komponen lain yang butuh token)
+  session: Session | null;
+  accessToken: string | null;
+  token: string | null; // alias
 
-  jadwalWawancara:
-    JadwalWawancara | null;
+  // status pendaftaran
+  status: string;
+  latestPengajuanStatus: string | null;
+  revisiNote: string;
+  jadwalWawancara: JadwalWawancara;
+  lastSeenJadwalWawancaraId: string | null;
 
-  userData:
-    UserDataType | null;
+  // ✅ ini yang dibutuhkan data-diri & dokumen
+  userData: UserDataShape;
+  setUserData: (v: UserDataShape) => void;
 
-  setUserData: (
-    value: UserDataType | null
-  ) => void;
+  documents: DocumentsShape;
+  setDocuments: (v: DocumentsShape) => void;
 
-  documents: DocumentType;
+  // refresh
+  refresh: () => Promise<void>;
+  refreshFromServer: () => Promise<void>;
 
-  setDocuments: (
-    value: DocumentType
-  ) => void;
+  // biar aman kalau ada komponen lain akses key lama
+  [key: string]: any;
+};
 
-  refreshFromServer:
-    () => Promise<void>;
-}
+const Ctx = createContext<UserCtx | null>(null);
 
-const UserContext =
-  createContext<
-    UserContextType | undefined
-  >(undefined);
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const supabase = useMemo(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anon) return null;
+    return createClient(url, anon);
+  }, []);
 
-export function UserProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [
-    photo,
-    setPhoto,
-  ] = useState<string | null>(
-    null
-  );
+  const [loading, setLoading] = useState(true);
 
-  const [
+  // auth/session
+  const [session, setSession] = useState<Session | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  // status pendaftaran
+  const [status, setStatus] = useState<string>("tidak_aktif");
+  const [latestPengajuanStatus, setLatestPengajuanStatus] = useState<string | null>(null);
+  const [revisiNote, setRevisiNote] = useState<string>("");
+  const [jadwalWawancara, setJadwalWawancara] = useState<JadwalWawancara>(null);
+  const [lastSeenJadwalWawancaraId, setLastSeenJadwalWawancaraId] = useState<string | null>(null);
+
+  // ✅ data-diri + dokumen
+  const [userData, _setUserData] = useState<UserDataShape>(null);
+  const [documents, _setDocuments] = useState<DocumentsShape>({});
+
+  const setUserData = (v: UserDataShape) => _setUserData(v);
+  const setDocuments = (v: DocumentsShape) => _setDocuments(v);
+
+  const refresh = async () => {
+    try {
+      setLoading(true);
+
+      if (!supabase) {
+        setSession(null);
+        setAccessToken(null);
+
+        setStatus("tidak_aktif");
+        setLatestPengajuanStatus(null);
+        setRevisiNote("");
+        setJadwalWawancara(null);
+        setLastSeenJadwalWawancaraId(null);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sess = sessionData.session ?? null;
+
+      setSession(sess);
+      setAccessToken(sess?.access_token ?? null);
+
+      const token = sess?.access_token;
+      if (!token) {
+        setStatus("tidak_aktif");
+        setLatestPengajuanStatus(null);
+        setRevisiNote("");
+        setJadwalWawancara(null);
+        setLastSeenJadwalWawancaraId(null);
+        return;
+      }
+
+      // ambil status pendaftaran (yang sudah kamu pakai)
+      const res = await fetch("/api/pendaftar/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        // fallback aman
+        setStatus("tidak_aktif");
+        setLatestPengajuanStatus(null);
+        setRevisiNote("");
+        setJadwalWawancara(null);
+        setLastSeenJadwalWawancaraId(null);
+        return;
+      }
+
+      setStatus(json?.status ?? "tidak_aktif");
+      setLatestPengajuanStatus(json?.latestPengajuanStatus ?? null);
+      setRevisiNote(json?.revisiNote ?? "");
+      setJadwalWawancara(json?.jadwalWawancara ?? null);
+      setLastSeenJadwalWawancaraId(json?.lastSeenJadwalWawancaraId ?? null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshFromServer = refresh;
+
+  useEffect(() => {
+    refresh();
+
+    // optional: ikut update session kalau auth berubah
+    if (!supabase) return;
+
+    const { data } = supabase.auth.onAuthStateChange((_event, sess) => {
+      setSession(sess);
+      setAccessToken(sess?.access_token ?? null);
+    });
+
+    return () => {
+      data.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const value: UserCtx = {
+    loading,
+
+    session,
+    accessToken,
+    token: accessToken, // alias
+
     status,
-    setStatus,
-  ] = useState<StatusType>(
-    "tidak_aktif"
-  );
-
-  const [
     latestPengajuanStatus,
-    setLatestPengajuanStatus,
-  ] = useState<string | null>(
-    null
-  );
-
-  const [
-    latestPengajuanId,
-    setLatestPengajuanId,
-  ] = useState<string | null>(
-    null
-  );
-
-  const [
     revisiNote,
-    setRevisiNote,
-  ] = useState<string | null>(
-    null
-  );
-
-  const [
     jadwalWawancara,
-    setJadwalWawancara,
-  ] =
-    useState<JadwalWawancara | null>(
-      null
-    );
+    lastSeenJadwalWawancaraId,
 
-  const [
     userData,
     setUserData,
-  ] = useState<UserDataType | null>(
-    null
-  );
 
-  const [
     documents,
     setDocuments,
-  ] = useState<DocumentType>(
-    {}
-  );
 
-  // ==========================================
-  // LOCAL STORAGE
-  // ==========================================
-  useEffect(() => {
-    const savedPhoto =
-      localStorage.getItem(
-        "user-photo"
-      );
+    refresh,
+    refreshFromServer,
+  };
 
-    const savedStatus =
-      localStorage.getItem(
-        "user-status"
-      );
-
-    const savedUser =
-      localStorage.getItem(
-        "user-data"
-      );
-
-    const savedDocs =
-      localStorage.getItem(
-        "user-documents"
-      );
-
-    if (savedPhoto) {
-      setPhoto(savedPhoto);
-    }
-
-    if (savedStatus) {
-      setStatus(
-        savedStatus as StatusType
-      );
-    }
-
-    if (savedUser) {
-      try {
-        setUserData(
-          JSON.parse(savedUser)
-        );
-      } catch {
-        localStorage.removeItem(
-          "user-data"
-        );
-      }
-    }
-
-    if (savedDocs) {
-      try {
-        setDocuments(
-          JSON.parse(savedDocs)
-        );
-      } catch {
-        localStorage.removeItem(
-          "user-documents"
-        );
-      }
-    }
-  }, []);
-
-  // ==========================================
-  // SIMPAN LOCAL STORAGE
-  // ==========================================
-  useEffect(() => {
-    if (photo) {
-      localStorage.setItem(
-        "user-photo",
-        photo
-      );
-    }
-
-    localStorage.setItem(
-      "user-status",
-      status
-    );
-
-    if (userData) {
-      localStorage.setItem(
-        "user-data",
-        JSON.stringify(userData)
-      );
-    }
-
-    localStorage.setItem(
-      "user-documents",
-      JSON.stringify(documents)
-    );
-  }, [
-    photo,
-    status,
-    userData,
-    documents,
-  ]);
-
-  // ==========================================
-  // REFRESH DARI SERVER
-  // ==========================================
-  async function refreshFromServer() {
-    const {
-      data: sessionData,
-    } =
-      await supabase.auth.getSession();
-
-    const token =
-      sessionData.session
-        ?.access_token;
-
-    if (!token) {
-      setStatus(
-        "tidak_aktif"
-      );
-
-      setLatestPengajuanStatus(
-        null
-      );
-
-      setLatestPengajuanId(
-        null
-      );
-
-      setRevisiNote(
-        null
-      );
-
-      setJadwalWawancara(
-        null
-      );
-
-      return;
-    }
-
-    // ==========================================
-    // UTM ATTACHMENT
-    // ==========================================
-    // Tidak menggagalkan proses login/status
-    // jika endpoint UTM mengalami error.
-    // ==========================================
-    try {
-      await fetch(
-        "/api/utm/attach",
-        {
-          method: "POST",
-          cache: "no-store",
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
-      );
-    } catch (error) {
-      console.warn(
-        "UTM ATTACH SKIPPED:",
-        error
-      );
-    }
-
-    // ==========================================
-    // AMBIL STATUS PESERTA
-    // ==========================================
-    const res =
-      await fetch(
-        "/api/pendaftar/status",
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-    const text =
-      await res.text();
-
-    let json: any = null;
-
-    try {
-      json = text
-        ? JSON.parse(text)
-        : null;
-    } catch {
-      json = {
-        message: text,
-      };
-    }
-
-    if (!res.ok) {
-      return;
-    }
-
-    setStatus(
-      (json?.status ??
-        "tidak_aktif") as StatusType
-    );
-
-    setLatestPengajuanStatus(
-      json?.latest_pengajuan_status ??
-        null
-    );
-
-    setLatestPengajuanId(
-      json?.latest_pengajuan_id ??
-        null
-    );
-
-    setRevisiNote(
-      json?.revisi_note ??
-        null
-    );
-
-    setJadwalWawancara(
-      json?.jadwal_wawancara ??
-        null
-    );
-  }
-
-  // ==========================================
-  // AUTH STATE
-  // ==========================================
-  useEffect(() => {
-    refreshFromServer();
-
-    const {
-      data: sub,
-    } =
-      supabase.auth.onAuthStateChange(
-        () => {
-          refreshFromServer();
-        }
-      );
-
-    return () =>
-      sub.subscription.unsubscribe();
-  }, []);
-
-  return (
-    <UserContext.Provider
-      value={{
-        photo,
-        setPhoto,
-
-        status,
-        setStatus,
-
-        latestPengajuanStatus,
-        latestPengajuanId,
-
-        revisiNote,
-        jadwalWawancara,
-
-        userData,
-        setUserData,
-
-        documents,
-        setDocuments,
-
-        refreshFromServer,
-      }}
-    >
-      {children}
-    </UserContext.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export function useUser() {
-  const context =
-    useContext(UserContext);
+export function useUser(): UserCtx {
+  const ctx = useContext(Ctx);
 
-  if (!context) {
-    throw new Error(
-      "useUser must be inside provider"
-    );
-  }
+  // ✅ fallback biar gak crash walau Provider belum kebaca
+  return (
+    ctx ?? {
+      loading: true,
 
-  return context;
+      session: null,
+      accessToken: null,
+      token: null,
+
+      status: "tidak_aktif",
+      latestPengajuanStatus: null,
+      revisiNote: "",
+      jadwalWawancara: null,
+      lastSeenJadwalWawancaraId: null,
+
+      userData: null,
+      setUserData: () => {},
+
+      documents: {},
+      setDocuments: () => {},
+
+      refresh: async () => {},
+      refreshFromServer: async () => {},
+    }
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye } from "lucide-react";
+import { Eye, Mail } from "lucide-react";
 import type { Interview } from "@/app/admin/wawancara/page";
 
 interface Props {
@@ -93,18 +93,32 @@ export default function InterviewTable({
                 <td className="px-6 py-5">
                   <InterviewStatusBadge status={item.status} />
                 </td>
+                
+            {/* Aksi */}
+            <td className="px-6 py-5">
+              <div className="flex items-center justify-center gap-2">
+                <a
+                  href={`mailto:${item.email}?subject=${encodeURIComponent(
+                    `Undangan Wawancara Magang - ${item.nama}`
+                  )}`}
+                  className="inline-flex items-center gap-2 rounded-xl border border-green-600 bg-white px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-600 hover:text-white"
+                  title={`Hubungi ${item.nama} melalui email`}
+                >
+                  <Mail size={16} />
+                  Hubungi
+                </a>
 
-                {/* Aksi */}
-                <td className="px-6 py-5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => onDetail(item)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-600 hover:text-white"
-                  >
-                    <Eye size={16} />
-                    Detail
-                  </button>
-                </td>
+                <button
+                  type="button"
+                  onClick={() => onDetail(item)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-white px-3 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-600 hover:text-white"
+                >
+                  <Eye size={16} />
+                  Detail
+                </button>
+              </div>
+            </td>
+
               </tr>
             ))}
           </tbody>

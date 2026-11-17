@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
+  ClipboardCheck,
   BriefcaseBusiness,
   Archive,
   Database,
@@ -41,6 +42,11 @@ const menus = [
     title: "Wawancara",
     icon: CalendarDays,
     href: "/admin/wawancara",
+  },
+  {
+    title: "Penilaian Wawancara",
+    icon: ClipboardCheck,
+    href: "/admin/penilaian-wawancara",
   },
   {
     title: "Peserta",

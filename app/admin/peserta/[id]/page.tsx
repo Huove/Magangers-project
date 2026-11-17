@@ -539,6 +539,15 @@ export default function AdminParticipantDetailPage() {
               )
               .maybeSingle();
 
+              console.log("DEBUG DETAIL PESERTA:", {
+                pesertaId,
+                pesertaDataId: pesertaData?.id,
+                userId: pesertaData?.user_id,
+                error: pesertaError,
+              });
+
+
+
 
           if (
             pesertaError
@@ -1083,6 +1092,13 @@ export default function AdminParticipantDetailPage() {
               ) as GenericRow[]
             );
           }
+
+          console.log("DEBUG ABSENSI:", {
+          pesertaId,
+          jumlahData: absensiResult.data?.length ?? 0,
+          data: absensiResult.data,
+          error: absensiResult.error,
+        });
 
 
           // =============================================
@@ -2756,16 +2772,15 @@ export default function AdminParticipantDetailPage() {
           )}
 
 
-        {activeTab ===
-          "absensi" && (
+        {activeTab === "absensi" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+            Tab absensi aktif. Jumlah data: {absensi.length}
+          </div>
 
-            <AbsensiTab
-              rows={
-                absensi
-              }
-            />
-
-          )}
+          <AbsensiTab rows={absensi} />
+        </div>
+      )}
 
 
         {activeTab ===
@@ -5539,193 +5554,423 @@ function ReactivationModal({
 // PROFILE
 // =====================================================
 
+
 function ProfileTab({
   peserta,
   profile,
   pendidikan,
   penempatan,
 }: {
-  peserta:
-  PesertaData;
-
-  profile:
-  ProfileData | null;
-
-  pendidikan:
-  PendidikanData;
-
-  penempatan:
-  PenempatanData;
+  peserta: PesertaData;
+  profile: ProfileData | null;
+  pendidikan: PendidikanData;
+  penempatan: PenempatanData;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const [form, setForm] = useState({
+    nama: profile?.nama ?? "",
+    email: profile?.email ?? "",
+    nomorHp: profile?.nomorHp ?? "",
+    sekolah: pendidikan.sekolah ?? "",
+    jurusan: pendidikan.jurusan ?? "",
+    kelas: pendidikan.kelas ?? "",
+  });
+
+  const startEditing = () => {
+    setForm({
+      nama: profile?.nama ?? "",
+      email: profile?.email ?? "",
+      nomorHp: profile?.nomorHp ?? "",
+      sekolah: pendidikan.sekolah ?? "",
+      jurusan: pendidikan.jurusan ?? "",
+      kelas: pendidikan.kelas ?? "",
+    });
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setForm({
+      nama: profile?.nama ?? "",
+      email: profile?.email ?? "",
+      nomorHp: profile?.nomorHp ?? "",
+      sekolah: pendidikan.sekolah ?? "",
+      jurusan: pendidikan.jurusan ?? "",
+      kelas: pendidikan.kelas ?? "",
+    });
+
+    setErrorMessage("");
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const profileUpdate = await supabase
+        .from("profiles")
+        .update({
+          nama_lengkap: form.nama.trim(),
+          email: form.email.trim(),
+          nomor_hp: form.nomorHp.trim(),
+        })
+        .eq("id", peserta.userId);
+
+      if (profileUpdate.error) {
+        throw profileUpdate.error;
+      }
+
+      const pendidikanUpdate = await supabase
+        .from("pendidikan")
+        .update({
+          sekolah: form.sekolah.trim(),
+          jurusan: form.jurusan.trim(),
+          kelas: form.kelas.trim(),
+        })
+        .eq("peserta_id", peserta.id);
+
+      if (pendidikanUpdate.error) {
+        throw pendidikanUpdate.error;
+      }
+
+      setSuccessMessage(
+        "Perubahan berhasil disimpan. Memuat ulang data..."
+      );
+
+      window.location.reload();
+    } catch (error) {
+      console.error("Gagal menyimpan biodata:", error);
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Biodata gagal disimpan. Silakan coba lagi."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const fields = [
+    {
+      key: "nama" as const,
+      label: "Nama Lengkap",
+      icon: User,
+    },
+    {
+      key: "email" as const,
+      label: "Email",
+      icon: Mail,
+    },
+    {
+      key: "nomorHp" as const,
+      label: "Nomor HP",
+      icon: Phone,
+    },
+    {
+      key: "sekolah" as const,
+      label: "Sekolah / Kampus",
+      icon: GraduationCap,
+    },
+    {
+      key: "jurusan" as const,
+      label: "Jurusan",
+      icon: BookOpen,
+    },
+    {
+      key: "kelas" as const,
+      label: "Kelas",
+      icon: GraduationCap,
+    },
+  ];
+
   return (
-    <div>
-
-      <SectionTitle
-        title="Informasi Peserta"
-        description="Informasi identitas, pendidikan, dan penempatan peserta."
-      />
-
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-
-        <InfoCard
-          icon={User}
-          label="Nama Lengkap"
-          value={
-            profile?.nama ??
-            "-"
-          }
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <SectionTitle
+          title="Informasi Peserta"
+          description="Informasi identitas, pendidikan, dan penempatan peserta."
         />
 
-
-        <InfoCard
-          icon={Mail}
-          label="Email"
-          value={
-            profile?.email ??
-            "-"
-          }
-        />
-
-
-        <InfoCard
-          icon={Phone}
-          label="Nomor HP"
-          value={
-            profile?.nomorHp ??
-            "-"
-          }
-        />
-
-
-        <InfoCard
-          icon={GraduationCap}
-          label="Sekolah / Kampus"
-          value={
-            pendidikan.sekolah
-          }
-        />
-
-
-        <InfoCard
-          icon={BookOpen}
-          label="Jurusan"
-          value={
-            pendidikan.jurusan
-          }
-        />
-
-
-        <InfoCard
-          icon={BriefcaseBusiness}
-          label="Posisi"
-          value={
-            penempatan.posisi
-          }
-        />
-
-
-        <InfoCard
-          icon={MapPin}
-          label="Divisi"
-          value={
-            penempatan.divisi
-          }
-        />
-
-
-        <InfoCard
-          icon={User}
-          label="Pembimbing"
-          value={
-            penempatan.pembimbing
-          }
-        />
-
-
-        <InfoCard
-          icon={ShieldCheck}
-          label="Status"
-          value={
-            formatStatus(
-              peserta.status
-            )
-          }
-        />
-
+        {!isEditing && (
+          <button
+            type="button"
+            onClick={startEditing}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Edit Biodata
+          </button>
+        )}
       </div>
 
+      {errorMessage && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          {errorMessage}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700"
+        >
+          {successMessage}
+        </div>
+      )}
+
+      {isEditing ? (
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {fields.map((field) => (
+              <label
+                key={field.key}
+                className="block space-y-2"
+              >
+                <span className="text-sm font-medium text-slate-700">
+                  {field.label}
+                </span>
+
+                <input
+                  type={field.key === "email" ? "email" : "text"}
+                  value={form[field.key]}
+                  onChange={(event) =>
+                    setForm((previous) => ({
+                      ...previous,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                  disabled={isSaving}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4">
+            <button
+              type="button"
+              onClick={cancelEditing}
+              disabled={isSaving}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Batal
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <InfoCard
+            icon={User}
+            label="Nama Lengkap"
+            value={profile?.nama ?? "-"}
+          />
+
+          <InfoCard
+            icon={Mail}
+            label="Email"
+            value={profile?.email ?? "-"}
+          />
+
+          <InfoCard
+            icon={Phone}
+            label="Nomor HP"
+            value={profile?.nomorHp ?? "-"}
+          />
+
+          <InfoCard
+            icon={GraduationCap}
+            label="Sekolah / Kampus"
+            value={pendidikan.sekolah}
+          />
+
+          <InfoCard
+            icon={BookOpen}
+            label="Jurusan"
+            value={pendidikan.jurusan}
+          />
+
+          <InfoCard
+            icon={GraduationCap}
+            label="Kelas"
+            value={pendidikan.kelas}
+          />
+
+          <InfoCard
+            icon={BriefcaseBusiness}
+            label="Posisi"
+            value={penempatan.posisi}
+          />
+
+          <InfoCard
+            icon={MapPin}
+            label="Divisi"
+            value={penempatan.divisi}
+          />
+
+          <InfoCard
+            icon={User}
+            label="Pembimbing"
+            value={penempatan.pembimbing}
+          />
+
+          <InfoCard
+            icon={ShieldCheck}
+            label="Status"
+            value={formatStatus(peserta.status)}
+          />
+        </div>
+      )}
     </div>
   );
 }
+
 
 
 // =====================================================
 // ABSENSI
 // =====================================================
 
+
 function AbsensiTab({
   rows,
 }: {
-  rows:
-  GenericRow[];
+  rows: GenericRow[];
 }) {
-  if (
-    rows.length ===
-    0
-  ) {
-    return (
-      <EmptyState
-        text="Belum ada data absensi."
-      />
-    );
-  }
+  const normalizeStatus = (value: unknown) =>
+    getString(value)
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ");
 
+  const countStatus = (keywords: string[]) =>
+    rows.filter((row) => {
+      const status = normalizeStatus(row.status);
+      return keywords.some((keyword) => status === keyword);
+    }).length;
+
+  const totalHadir = countStatus([
+    "hadir",
+    "tepat waktu",
+    "terlambat",
+  ]);
+
+  const totalIzin = countStatus(["izin"]);
+  const totalSakit = countStatus(["sakit"]);
+  const totalAlfa = countStatus(["alfa", "alpha", "tanpa keterangan"]);
+
+  const summaries = [
+    {
+      label: "Hadir",
+      total: totalHadir,
+      color: "text-emerald-700",
+      background: "bg-emerald-50",
+    },
+    {
+      label: "Izin",
+      total: totalIzin,
+      color: "text-blue-700",
+      background: "bg-blue-50",
+    },
+    {
+      label: "Sakit",
+      total: totalSakit,
+      color: "text-amber-700",
+      background: "bg-amber-50",
+    },
+    {
+      label: "Alfa",
+      total: totalAlfa,
+      color: "text-red-700",
+      background: "bg-red-50",
+    },
+  ];
 
   return (
-    <SimpleListSection
-      title="Riwayat Absensi"
-      description={`${rows.length} data absensi ditemukan.`}
-    >
+    <div className="space-y-6">
+      <SectionTitle
+        title="Ringkasan Kehadiran"
+        description="Rekap kehadiran berdasarkan data absensi peserta."
+      />
 
-      {rows.map(
-        (
-          row,
-          index
-        ) => (
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {summaries.map((item) => (
+          <div
+            key={item.label}
+            className="rounded-xl border border-slate-200 bg-white p-5"
+          >
+            <p className="text-sm text-slate-500">
+              {item.label}
+            </p>
 
-          <DataRow
-            key={
-              getKey(
-                row,
-                index
-              )
-            }
-            title={
-              formatDate(
-                getNullableString(
-                  row.tanggal
-                )
-              )
-            }
-            subtitle={`Masuk: ${getString(
-              row.jam_masuk
-            )} • Pulang: ${getString(
-              row.jam_pulang
-            )}`}
-            status={
-              getString(
-                row.status
-              )
-            }
-          />
+            <p
+              className={`mt-2 text-3xl font-semibold ${item.color}`}
+            >
+              {item.total}
+            </p>
 
-        )
-      )}
+            <p className="mt-1 text-xs text-slate-400">
+              data absensi
+            </p>
+          </div>
+        ))}
+      </div>
 
-    </SimpleListSection>
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-4">
+          <h3 className="font-semibold text-slate-900">
+            Riwayat Absensi
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {rows.length} data absensi ditemukan.
+          </p>
+        </div>
+
+        {rows.length === 0 ? (
+          <EmptyState text="Belum ada data absensi." />
+        ) : (
+          <div className="space-y-3">
+            {rows.map((row, index) => (
+              <DataRow
+                key={getKey(row, index)}
+                title={formatDate(
+                  getNullableString(row.tanggal)
+                )}
+                subtitle={`Masuk: ${getString(
+                  row.jam_masuk
+                )} • Pulang: ${getString(
+                  row.jam_pulang
+                )}`}
+                status={getString(row.status)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
+
 
 
 // =====================================================

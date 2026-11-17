@@ -38,6 +38,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import SearchableSelect from "@/components/common/SearchableSelect";
+
 
 // =====================================================
 // TYPE
@@ -1261,49 +1263,18 @@ export default function NotifikasiPage() {
                     Peserta Tujuan
                   </label>
 
-
-                  <select
-                    value={
-                      pesertaId
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setPesertaId(
-                        event.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
-                  >
-                    <option value="">
-                      Pilih Peserta
-                    </option>
-
-
-                    {participants.map(
-                      (
-                        participant
-                      ) => (
-
-                        <option
-                          key={
-                            participant.id
-                          }
-                          value={
-                            participant.id
-                          }
-                        >
-                          {participant.nama}
-                          {" — "}
-                          {formatParticipantStatus(
-                            participant.status
-                          )}
-                        </option>
-
-                      )
-                    )}
-
-                  </select>
+                <SearchableSelect
+                  options={participants.map((participant) => ({
+                    value: String(participant.id),
+                    label: `${participant.nama} — ${formatParticipantStatus(
+                      participant.status
+                    )}`,
+                  }))}
+                  value={String(pesertaId ?? "")}
+                  onChange={(value) => setPesertaId(value)}
+                  placeholder="Pilih Peserta"
+                  searchPlaceholder="Cari nama peserta..."
+                />
 
 
                   {participants.length ===
